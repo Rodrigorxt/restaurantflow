@@ -28,9 +28,11 @@ builder.Services.AddMassTransit(configurator =>
 });
 
 var app = builder.Build();
-await using (var scope = app.Services.CreateAsyncScope())
+if (builder.Configuration.GetValue<bool>("Database:Migrate"))
 {
+    await using var scope = app.Services.CreateAsyncScope();
     await scope.ServiceProvider.GetRequiredService<PaymentsDbContext>().Database.MigrateAsync();
+    if (builder.Configuration.GetValue<bool>("Database:MigrationsOnly")) return;
 }
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.MapHealthChecks("/health");

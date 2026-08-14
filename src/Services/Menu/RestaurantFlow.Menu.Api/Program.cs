@@ -12,9 +12,11 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<MenuDbContext>(options => options.UseNpgsql(connectionString));
 
 var app = builder.Build();
-await using (var scope = app.Services.CreateAsyncScope())
+if (builder.Configuration.GetValue<bool>("Database:Migrate"))
 {
+    await using var scope = app.Services.CreateAsyncScope();
     await scope.ServiceProvider.GetRequiredService<MenuDbContext>().Database.MigrateAsync();
+    if (builder.Configuration.GetValue<bool>("Database:MigrationsOnly")) return;
 }
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.MapHealthChecks("/health");

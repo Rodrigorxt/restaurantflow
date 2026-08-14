@@ -32,6 +32,21 @@ services:
     depends_on:
       menu-db:
         condition: service_healthy
+      menu-migrations:
+        condition: service_completed_successfully
+
+  menu-migrations:
+    build:
+      context: .
+      dockerfile: src/Services/Menu/RestaurantFlow.Menu.Api/Dockerfile
+    environment:
+      ConnectionStrings__Database: Host=menu-db;Database=menu;Username=postgres;Password=postgres
+      Database__Migrate: "true"
+      Database__MigrationsOnly: "true"
+    depends_on:
+      menu-db:
+        condition: service_healthy
+    restart: "no"
 
   orders-api:
     build:
@@ -48,6 +63,21 @@ services:
         condition: service_healthy
       menu-api:
         condition: service_started
+      orders-migrations:
+        condition: service_completed_successfully
+
+  orders-migrations:
+    build:
+      context: .
+      dockerfile: src/Services/Orders/RestaurantFlow.Orders.Api/Dockerfile
+    environment:
+      ConnectionStrings__Database: Host=orders-db;Database=orders;Username=postgres;Password=postgres
+      Database__Migrate: "true"
+      Database__MigrationsOnly: "true"
+    depends_on:
+      orders-db:
+        condition: service_healthy
+    restart: "no"
 
   kitchen-api:
     build:
@@ -61,6 +91,21 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      kitchen-migrations:
+        condition: service_completed_successfully
+
+  kitchen-migrations:
+    build:
+      context: .
+      dockerfile: src/Services/Kitchen/RestaurantFlow.Kitchen.Api/Dockerfile
+    environment:
+      ConnectionStrings__Database: Host=kitchen-db;Database=kitchen;Username=postgres;Password=postgres
+      Database__Migrate: "true"
+      Database__MigrationsOnly: "true"
+    depends_on:
+      kitchen-db:
+        condition: service_healthy
+    restart: "no"
 
   payments-api:
     build:
@@ -74,6 +119,21 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      payments-migrations:
+        condition: service_completed_successfully
+
+  payments-migrations:
+    build:
+      context: .
+      dockerfile: src/Services/Payments/RestaurantFlow.Payments.Api/Dockerfile
+    environment:
+      ConnectionStrings__Database: Host=payments-db;Database=payments;Username=postgres;Password=postgres
+      Database__Migrate: "true"
+      Database__MigrationsOnly: "true"
+    depends_on:
+      payments-db:
+        condition: service_healthy
+    restart: "no"
 
   notifications-worker:
     build:

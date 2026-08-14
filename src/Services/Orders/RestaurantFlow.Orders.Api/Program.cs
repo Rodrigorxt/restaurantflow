@@ -19,7 +19,7 @@ builder.Services.AddDbContext<OrdersDbContext>(options => options.UseNpgsql(conn
 builder.Services
     .AddHttpClient<MenuCatalogClient>(client =>
     {
-        client.BaseAddress = new Uri(builder.Configuration["Services:Menu"] ?? "http://localhost:5001");
+        client.BaseAddress = new Uri(builder.Configuration["Services:Menu"] ?? "http://localhost:5232");
         client.Timeout = TimeSpan.FromSeconds(10);
     })
     .AddStandardResilienceHandler();
@@ -45,9 +45,11 @@ builder.Services.AddMassTransit(configurator =>
 });
 
 var app = builder.Build();
-await using (var scope = app.Services.CreateAsyncScope())
+if (builder.Configuration.GetValue<bool>("Database:Migrate"))
 {
+    await using var scope = app.Services.CreateAsyncScope();
     await scope.ServiceProvider.GetRequiredService<OrdersDbContext>().Database.MigrateAsync();
+    if (builder.Configuration.GetValue<bool>("Database:MigrationsOnly")) return;
 }
 app.UseExceptionHandler();
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
