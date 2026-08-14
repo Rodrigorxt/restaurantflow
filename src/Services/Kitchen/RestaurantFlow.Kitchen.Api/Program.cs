@@ -1,41 +1,54 @@
-var builder = WebApplication.CreateBuilder(args);
+using MassTransit;
+using Microsoft.EntityFrameworkCore;
+using RestaurantFlow.Contracts;
+using RestaurantFlow.Kitchen.Api;
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+var builder = WebApplication.CreateBuilder(args);
+var connectionString = builder.Configuration.GetConnectionString("Database")
+    ?? "Host=localhost;Port=5434;Database=kitchen;Username=postgres;Password=postgres";
+
 builder.Services.AddOpenApi();
+builder.Services.AddHealthChecks();
+builder.Services.AddDbContext<KitchenDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddMassTransit(configurator =>
+{
+    configurator.AddConsumer<PaymentAuthorizedConsumer>();
+    configurator.UsingRabbitMq((context, rabbit) =>
+    {
+        rabbit.Host(builder.Configuration["RabbitMq:Host"] ?? "localhost", host =>
+        {
+            host.Username(builder.Configuration["RabbitMq:Username"] ?? "guest");
+            host.Password(builder.Configuration["RabbitMq:Password"] ?? "guest");
+        });
+        rabbit.UseMessageRetry(retry => retry.Intervals(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15)));
+        rabbit.ConfigureEndpoints(context);
+    });
+});
 
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment()) app.MapOpenApi();
+app.MapHealthChecks("/health");
+app.MapGet("/api/kitchen/tickets", async (KitchenDbContext dbContext, CancellationToken cancellationToken) =>
+    Results.Ok(await dbContext.Tickets.AsNoTracking().OrderBy(ticket => ticket.CreatedAt).ToListAsync(cancellationToken)));
+app.MapPost("/api/kitchen/tickets/{id:guid}/start", async (Guid id, KitchenDbContext dbContext, IPublishEndpoint publisher, CancellationToken cancellationToken) =>
 {
-    app.MapOpenApi();
-}
-
-app.UseHttpsRedirection();
-
-var summaries = new[]
+    var ticket = await dbContext.Tickets.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+    if (ticket is null) return Results.NotFound();
+    ticket.Start();
+    await dbContext.SaveChangesAsync(cancellationToken);
+    await publisher.Publish(new KitchenPreparationStarted(Guid.NewGuid(), ticket.OrderId, ticket.Id, DateTimeOffset.UtcNow), cancellationToken);
+    return Results.Ok(ticket);
+});
+app.MapPost("/api/kitchen/tickets/{id:guid}/complete", async (Guid id, KitchenDbContext dbContext, IPublishEndpoint publisher, CancellationToken cancellationToken) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
+    var ticket = await dbContext.Tickets.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+    if (ticket is null) return Results.NotFound();
+    ticket.Complete();
+    await dbContext.SaveChangesAsync(cancellationToken);
+    await publisher.Publish(new OrderReady(Guid.NewGuid(), ticket.OrderId, ticket.Id, DateTimeOffset.UtcNow), cancellationToken);
+    return Results.Ok(ticket);
+});
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public partial class Program;
+

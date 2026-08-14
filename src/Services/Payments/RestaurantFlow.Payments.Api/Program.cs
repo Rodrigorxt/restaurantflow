@@ -1,41 +1,38 @@
-var builder = WebApplication.CreateBuilder(args);
+using MassTransit;
+using Microsoft.EntityFrameworkCore;
+using RestaurantFlow.Payments.Api;
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+var builder = WebApplication.CreateBuilder(args);
+var connectionString = builder.Configuration.GetConnectionString("Database")
+    ?? "Host=localhost;Port=5435;Database=payments;Username=postgres;Password=postgres";
+
 builder.Services.AddOpenApi();
+builder.Services.AddHealthChecks();
+builder.Services.AddDbContext<PaymentsDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddMassTransit(configurator =>
+{
+    configurator.AddConsumer<OrderSubmittedConsumer>();
+    configurator.UsingRabbitMq((context, rabbit) =>
+    {
+        rabbit.Host(builder.Configuration["RabbitMq:Host"] ?? "localhost", host =>
+        {
+            host.Username(builder.Configuration["RabbitMq:Username"] ?? "guest");
+            host.Password(builder.Configuration["RabbitMq:Password"] ?? "guest");
+        });
+        rabbit.UseMessageRetry(retry => retry.Intervals(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15)));
+        rabbit.ConfigureEndpoints(context);
+    });
+});
 
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment()) app.MapOpenApi();
+app.MapHealthChecks("/health");
+app.MapGet("/api/payments/{orderId:guid}", async (Guid orderId, PaymentsDbContext dbContext, CancellationToken cancellationToken) =>
 {
-    app.MapOpenApi();
-}
-
-app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
+    var payment = await dbContext.Payments.AsNoTracking().SingleOrDefaultAsync(x => x.OrderId == orderId, cancellationToken);
+    return payment is null ? Results.NotFound() : Results.Ok(payment);
+});
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public partial class Program;
+
