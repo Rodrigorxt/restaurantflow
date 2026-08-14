@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MassTransit;
 
 namespace RestaurantFlow.Kitchen.Api;
 
@@ -15,6 +16,9 @@ public sealed class KitchenDbContext(DbContextOptions<KitchenDbContext> options)
             entity.HasIndex(ticket => ticket.OrderId).IsUnique();
             entity.Property(ticket => ticket.Status).HasMaxLength(30);
         });
+
+        modelBuilder.AddInboxStateEntity();
+        modelBuilder.AddOutboxMessageEntity();
+        modelBuilder.AddOutboxStateEntity();
     }
 }
-

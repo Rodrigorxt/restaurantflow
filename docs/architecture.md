@@ -69,14 +69,15 @@ The Menu HTTP client uses standard resilience policies for transient failures: t
 
 ## Asynchronous workflow
 
-1. `OrderSubmitted` starts payment processing.
-2. Payments publishes `PaymentAuthorized` or `PaymentDeclined`.
-3. Kitchen creates a ticket only after payment authorization.
-4. Kitchen publishes preparation and ready events.
-5. Orders updates its lifecycle from those events.
-6. Notifications consumes customer-relevant events independently.
+1. `OrderSubmitted` creates the persisted workflow saga.
+2. The saga publishes `AuthorizePayment`.
+3. Payments publishes `PaymentAuthorized` or `PaymentDeclined` through its transactional outbox.
+4. Authorization makes the saga publish `CreateKitchenTicket`; a decline publishes the compensating `CancelOrder` command.
+5. Kitchen publishes preparation and ready events through its transactional outbox.
+6. Orders updates its aggregate while the saga records the distributed workflow state.
+7. Notifications consumes customer-relevant events independently.
 
-Delivery is at least once. Consumers therefore need stable message identifiers, unique business keys, retries, and idempotent state transitions. Orders currently uses a transactional outbox. Extending outbox and inbox persistence to all participants is a planned hardening milestone.
+Delivery is at least once. Core consumers use the MassTransit Entity Framework Inbox, unique business keys, retries, and idempotent state transitions. Orders, Payments, and Kitchen store outgoing messages in the same PostgreSQL transaction as business changes. The saga uses pessimistic PostgreSQL concurrency and keeps final workflow records for diagnostics.
 
 ## Persistence and migrations
 

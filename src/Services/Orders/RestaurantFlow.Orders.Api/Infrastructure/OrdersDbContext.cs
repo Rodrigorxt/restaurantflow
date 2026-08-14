@@ -1,6 +1,7 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using RestaurantFlow.Orders.Api.Domain;
+using RestaurantFlow.Orders.Api.Workflow;
 
 namespace RestaurantFlow.Orders.Api.Infrastructure;
 
@@ -33,6 +34,13 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) :
         modelBuilder.AddInboxStateEntity();
         modelBuilder.AddOutboxMessageEntity();
         modelBuilder.AddOutboxStateEntity();
+        modelBuilder.Entity<OrderWorkflowState>(entity =>
+        {
+            entity.ToTable("order_workflow_states");
+            entity.HasKey(state => state.CorrelationId);
+            entity.Property(state => state.CurrentState).HasMaxLength(64);
+            entity.Property(state => state.Total).HasPrecision(12, 2);
+            entity.Property(state => state.FailureReason).HasMaxLength(500);
+        });
     }
 }
-

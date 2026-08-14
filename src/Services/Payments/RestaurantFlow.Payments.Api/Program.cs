@@ -17,6 +17,13 @@ builder.Services.AddMassTransit(configurator =>
 {
     configurator.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("payments", false));
     configurator.AddConsumer<OrderSubmittedConsumer>();
+    configurator.AddEntityFrameworkOutbox<PaymentsDbContext>(outbox =>
+    {
+        outbox.UsePostgres();
+        outbox.UseBusOutbox();
+    });
+    configurator.AddConfigureEndpointsCallback((context, _, endpoint) =>
+        endpoint.UseEntityFrameworkOutbox<PaymentsDbContext>(context));
     configurator.UsingRabbitMq((context, rabbit) =>
     {
         rabbit.Host(builder.Configuration["RabbitMq:Host"] ?? "localhost", host =>

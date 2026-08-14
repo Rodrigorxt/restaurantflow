@@ -2,6 +2,27 @@ namespace RestaurantFlow.Contracts;
 
 public sealed record OrderItemSnapshot(Guid MenuItemId, string Name, int Quantity, decimal UnitPrice);
 
+public sealed record AuthorizePayment(
+    Guid EventId,
+    Guid CorrelationId,
+    Guid OrderId,
+    string PaymentReference,
+    decimal Total,
+    DateTimeOffset OccurredAt);
+
+public sealed record CreateKitchenTicket(
+    Guid EventId,
+    Guid CorrelationId,
+    Guid OrderId,
+    DateTimeOffset OccurredAt);
+
+public sealed record CancelOrder(
+    Guid EventId,
+    Guid CorrelationId,
+    Guid OrderId,
+    string Reason,
+    DateTimeOffset OccurredAt);
+
 public sealed record OrderSubmitted(
     Guid EventId,
     Guid OrderId,
@@ -42,4 +63,3 @@ public sealed record OrderReady(
     Guid OrderId,
     Guid TicketId,
     DateTimeOffset OccurredAt);
-

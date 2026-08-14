@@ -4,9 +4,9 @@ using RestaurantFlow.Contracts;
 
 namespace RestaurantFlow.Payments.Api;
 
-public sealed class OrderSubmittedConsumer(PaymentsDbContext dbContext, ILogger<OrderSubmittedConsumer> logger) : IConsumer<OrderSubmitted>
+public sealed class OrderSubmittedConsumer(PaymentsDbContext dbContext, ILogger<OrderSubmittedConsumer> logger) : IConsumer<AuthorizePayment>
 {
-    public async Task Consume(ConsumeContext<OrderSubmitted> context)
+    public async Task Consume(ConsumeContext<AuthorizePayment> context)
     {
         if (await dbContext.Payments.AnyAsync(payment => payment.OrderId == context.Message.OrderId, context.CancellationToken))
         {
@@ -31,4 +31,3 @@ public sealed class OrderSubmittedConsumer(PaymentsDbContext dbContext, ILogger<
         await context.Publish(new PaymentAuthorized(Guid.NewGuid(), payment.OrderId, payment.Id, payment.Amount, DateTimeOffset.UtcNow));
     }
 }
-

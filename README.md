@@ -55,10 +55,11 @@ See [System architecture](docs/architecture.md) and the [architecture decision r
 1. The client submits menu item identifiers and quantities to the Orders API.
 2. Orders resolves the current name, price, and availability from the Menu API.
 3. Orders calculates the total, persists the aggregate, and publishes `OrderSubmitted` through its transactional outbox.
-4. Payments authorizes or declines the transaction and publishes the result.
-5. An approved payment creates a Kitchen ticket.
-6. Kitchen events advance the order through preparation and ready states.
-7. Notifications consumes customer-relevant events independently.
+4. A persisted Orders saga sends `AuthorizePayment` and records the workflow state.
+5. Payments authorizes or declines the transaction through its transactional Inbox/Outbox.
+6. An approved payment makes the saga send `CreateKitchenTicket`; a decline sends the compensating `CancelOrder` command.
+7. Kitchen uses its transactional Inbox/Outbox and publishes preparation events.
+8. Notifications consumes customer-relevant events independently.
 
 Clients never provide trusted product names or prices. The Orders-to-Menu call is protected by timeout, retry, and circuit-breaker policies.
 
@@ -103,7 +104,8 @@ The GitHub Actions pipeline restores, builds, runs unit, architecture, and conta
 ## Reliability and scalability
 
 - Database-per-service ownership prevents cross-service persistence coupling.
-- The Orders service uses the MassTransit Entity Framework transactional outbox.
+- Orders, Payments, and Kitchen use MassTransit Entity Framework transactional Inbox/Outbox persistence.
+- A PostgreSQL-backed MassTransit saga orchestrates payment, kitchen creation, and cancellation compensation.
 - Consumers use service-prefixed queues, retry policies, and idempotent business keys.
 - Server-authoritative menu resolution prevents client-side price manipulation.
 - Standard HTTP resilience policies protect synchronous service calls.
@@ -121,7 +123,8 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It deploys
 | --- | --- |
 | End-to-end order workflow | Implemented |
 | Server-authoritative pricing | Implemented |
-| Orders transactional outbox | Implemented |
+| Transactional Inbox/Outbox for Orders, Payments, and Kitchen | Implemented |
+| Persisted order workflow saga and decline compensation | Implemented |
 | Retry and circuit breaker for Menu calls | Implemented |
 | Dedicated migration workloads | Implemented |
 | Docker Compose and Helm deployment | Implemented |
@@ -129,8 +132,7 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It deploys
 | PostgreSQL Testcontainers integration tests | Implemented for Menu pricing |
 | OIDC authentication and policy authorization | Implemented |
 | OAuth client credentials for Orders to Menu | Implemented |
-| Full consumer inbox and idempotency coverage | Planned |
-| Saga orchestration and compensation | Planned |
+| Full consumer idempotency coverage | Implemented for core workflow |
 | Local observability dashboard stack | Planned |
 | RabbitMQ and full workflow integration tests | Planned |
 | Production secret provider and managed cloud databases | Planned |
@@ -138,7 +140,6 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It deploys
 ## Next milestones
 
 1. Extend Testcontainers coverage to RabbitMQ and the complete order workflow.
-2. Extend transactional outbox and inbox guarantees to every event-producing service.
-3. Model the distributed order workflow as a persisted saga with compensation.
-4. Add an OpenTelemetry Collector, Prometheus, Grafana, Tempo, and structured log aggregation.
-5. Add production overlays for managed Kubernetes, databases, messaging, and secret storage.
+2. Add timeout and failure-injection tests for saga recovery paths.
+3. Add an OpenTelemetry Collector, Prometheus, Grafana, Tempo, and structured log aggregation.
+4. Add production overlays for managed Kubernetes, databases, messaging, and secret storage.

@@ -8,6 +8,7 @@ using RestaurantFlow.Orders.Api.Infrastructure;
 using RestaurantFlow.Orders.Api.Integrations;
 using RestaurantFlow.Observability;
 using RestaurantFlow.Security;
+using RestaurantFlow.Orders.Api.Workflow;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRestaurantFlowObservability("restaurantflow-orders");
@@ -33,6 +34,13 @@ builder.Services.AddMassTransit(configurator =>
 {
     configurator.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("orders", false));
     configurator.AddConsumers(typeof(Program).Assembly);
+    configurator.AddSagaStateMachine<OrderWorkflowStateMachine, OrderWorkflowState>()
+        .EntityFrameworkRepository(repository =>
+        {
+            repository.ExistingDbContext<OrdersDbContext>();
+            repository.UsePostgres();
+            repository.ConcurrencyMode = ConcurrencyMode.Pessimistic;
+        });
     configurator.AddEntityFrameworkOutbox<OrdersDbContext>(outbox =>
     {
         outbox.UsePostgres();
@@ -128,6 +136,19 @@ app.MapGet("/api/orders/{id:guid}", async (Guid id, ClaimsPrincipal user, IConfi
         && (!Guid.TryParse(user.FindFirstValue("sub"), out var customerId) || order.CustomerId != customerId))
         return Results.Forbid();
     return Results.Ok(order);
+}).RequireAuthorization(Policies.Customer);
+
+app.MapGet("/api/orders/{id:guid}/workflow", async (Guid id, ClaimsPrincipal user, IConfiguration configuration, OrdersDbContext dbContext, CancellationToken cancellationToken) =>
+{
+    var workflow = await dbContext.Set<OrderWorkflowState>().AsNoTracking().SingleOrDefaultAsync(
+        state => state.CorrelationId == id,
+        cancellationToken);
+    if (workflow is null) return Results.NotFound();
+    if (configuration.GetValue("Authentication:Enabled", false)
+        && !user.IsInRole("admin")
+        && (!Guid.TryParse(user.FindFirstValue("sub"), out var customerId) || workflow.CustomerId != customerId))
+        return Results.Forbid();
+    return Results.Ok(workflow);
 }).RequireAuthorization(Policies.Customer);
 
 app.Run();

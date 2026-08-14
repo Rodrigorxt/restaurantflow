@@ -64,6 +64,10 @@ Authorization: Bearer {{customerLogin.response.body.$.access_token}}
 GET {{host}}/api/orders/{{createApprovedOrder.response.body.$.id}}
 Authorization: Bearer {{customerLogin.response.body.$.access_token}}
 
+### Inspect the approved order workflow saga
+GET {{host}}/api/orders/{{createApprovedOrder.response.body.$.id}}/workflow
+Authorization: Bearer {{customerLogin.response.body.$.access_token}}
+
 ### Simulate a declined payment
 # @name createDeclinedOrder
 POST {{host}}/api/orders
@@ -84,6 +88,10 @@ Authorization: Bearer {{customerLogin.response.body.$.access_token}}
 
 ### Read the declined order after asynchronous processing
 GET {{host}}/api/orders/{{createDeclinedOrder.response.body.$.id}}
+Authorization: Bearer {{customerLogin.response.body.$.access_token}}
+
+### Inspect the compensated workflow saga
+GET {{host}}/api/orders/{{createDeclinedOrder.response.body.$.id}}/workflow
 Authorization: Bearer {{customerLogin.response.body.$.access_token}}
 
 ### List kitchen tickets

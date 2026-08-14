@@ -18,6 +18,13 @@ builder.Services.AddMassTransit(configurator =>
 {
     configurator.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("kitchen", false));
     configurator.AddConsumer<PaymentAuthorizedConsumer>();
+    configurator.AddEntityFrameworkOutbox<KitchenDbContext>(outbox =>
+    {
+        outbox.UsePostgres();
+        outbox.UseBusOutbox();
+    });
+    configurator.AddConfigureEndpointsCallback((context, _, endpoint) =>
+        endpoint.UseEntityFrameworkOutbox<KitchenDbContext>(context));
     configurator.UsingRabbitMq((context, rabbit) =>
     {
         rabbit.Host(builder.Configuration["RabbitMq:Host"] ?? "localhost", host =>
@@ -48,8 +55,8 @@ app.MapPost("/api/kitchen/tickets/{id:guid}/start", async (Guid id, KitchenDbCon
     var ticket = await dbContext.Tickets.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
     if (ticket is null) return Results.NotFound();
     ticket.Start();
-    await dbContext.SaveChangesAsync(cancellationToken);
     await publisher.Publish(new KitchenPreparationStarted(Guid.NewGuid(), ticket.OrderId, ticket.Id, DateTimeOffset.UtcNow), cancellationToken);
+    await dbContext.SaveChangesAsync(cancellationToken);
     return Results.Ok(ticket);
 }).RequireAuthorization(Policies.Kitchen);
 app.MapPost("/api/kitchen/tickets/{id:guid}/complete", async (Guid id, KitchenDbContext dbContext, IPublishEndpoint publisher, CancellationToken cancellationToken) =>
@@ -57,8 +64,8 @@ app.MapPost("/api/kitchen/tickets/{id:guid}/complete", async (Guid id, KitchenDb
     var ticket = await dbContext.Tickets.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
     if (ticket is null) return Results.NotFound();
     ticket.Complete();
-    await dbContext.SaveChangesAsync(cancellationToken);
     await publisher.Publish(new OrderReady(Guid.NewGuid(), ticket.OrderId, ticket.Id, DateTimeOffset.UtcNow), cancellationToken);
+    await dbContext.SaveChangesAsync(cancellationToken);
     return Results.Ok(ticket);
 }).RequireAuthorization(Policies.Kitchen);
 app.Run();
