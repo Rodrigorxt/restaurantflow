@@ -4,9 +4,9 @@ using RestaurantFlow.Contracts;
 
 namespace RestaurantFlow.Kitchen.Api;
 
-public sealed class PaymentAuthorizedConsumer(KitchenDbContext dbContext) : IConsumer<PaymentAuthorized>
+public sealed class PaymentAuthorizedConsumer(KitchenDbContext dbContext) : IConsumer<CreateKitchenTicket>
 {
-    public async Task Consume(ConsumeContext<PaymentAuthorized> context)
+    public async Task Consume(ConsumeContext<CreateKitchenTicket> context)
     {
         if (await dbContext.Tickets.AnyAsync(ticket => ticket.OrderId == context.Message.OrderId, context.CancellationToken)) return;
 
@@ -16,4 +16,3 @@ public sealed class PaymentAuthorizedConsumer(KitchenDbContext dbContext) : ICon
         await context.Publish(new KitchenTicketCreated(Guid.NewGuid(), ticket.OrderId, ticket.Id, DateTimeOffset.UtcNow));
     }
 }
-

@@ -23,6 +23,8 @@ jobs:
         run: dotnet build RestaurantFlow.slnx --configuration Release --no-restore
       - name: Test
         run: dotnet test RestaurantFlow.slnx --configuration Release --no-build --logger trx
+      - name: Audit NuGet dependencies
+        run: dotnet package list --project RestaurantFlow.slnx --vulnerable --include-transitive --format json | tee dependency-audit.json
       - name: Validate Docker Compose
         run: docker compose config --quiet
 
@@ -35,4 +37,21 @@ jobs:
         run: helm lint deploy/helm/restaurantflow
       - name: Render chart
         run: helm template restaurantflow deploy/helm/restaurantflow --namespace restaurantflow > rendered.yaml
+      - name: Render production profile
+        run: helm template restaurantflow deploy/helm/restaurantflow --namespace restaurantflow --values deploy/helm/restaurantflow/values-production.yaml > rendered-production.yaml
 
+  end-to-end-workflow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start complete platform
+        run: docker compose up --build --detach
+      - name: Test approved and compensated workflows
+        run: ./scripts/run-e2e.sh
+      - name: Capture diagnostics
+        if: failure()
+        run: docker compose ps --all && docker compose logs --no-color --tail 300
+      - name: Stop platform
+        if: always()
+        run: docker compose down --volumes

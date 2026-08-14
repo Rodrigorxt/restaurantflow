@@ -1,0 +1,127 @@
+{
+  "realm": "restaurantflow",
+  "enabled": true,
+  "displayName": "RestaurantFlow",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "roles": {
+    "realm": [
+      { "name": "customer" },
+      { "name": "kitchen" },
+      { "name": "admin" },
+      { "name": "internal" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "restaurantflow-api",
+      "name": "RestaurantFlow API",
+      "enabled": true,
+      "bearerOnly": true,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "restaurantflow-cli",
+      "name": "RestaurantFlow local CLI",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": false,
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "restaurantflow-api",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "orders-service",
+      "name": "Orders service",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "local-orders-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "restaurantflow-api",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "2d42a448-d6ea-4577-9b76-98f38682b820",
+      "username": "customer",
+      "firstName": "Local",
+      "lastName": "Customer",
+      "email": "customer@example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "realmRoles": [ "customer" ],
+      "credentials": [ { "type": "password", "value": "customer", "temporary": false } ]
+    },
+    {
+      "username": "kitchen",
+      "firstName": "Kitchen",
+      "lastName": "Operator",
+      "email": "kitchen@example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "realmRoles": [ "kitchen" ],
+      "credentials": [ { "type": "password", "value": "kitchen", "temporary": false } ]
+    },
+    {
+      "username": "restaurant-admin",
+      "firstName": "Restaurant",
+      "lastName": "Administrator",
+      "email": "admin@example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "realmRoles": [ "admin" ],
+      "credentials": [ { "type": "password", "value": "admin", "temporary": false } ]
+    },
+    {
+      "username": "service-account-orders-service",
+      "enabled": true,
+      "serviceAccountClientId": "orders-service",
+      "realmRoles": [ "internal" ]
+    }
+  ]
+}

@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MassTransit.EntityFrameworkCore" Version="8.5.7" />
     <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.7" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4">
@@ -19,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\RestaurantFlow.Contracts\RestaurantFlow.Contracts.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\RestaurantFlow.Observability\RestaurantFlow.Observability.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\RestaurantFlow.Security\RestaurantFlow.Security.csproj" />
   </ItemGroup>
 
 </Project>

@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\RestaurantFlow.Observability\RestaurantFlow.Observability.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\RestaurantFlow.Security\RestaurantFlow.Security.csproj" />
   </ItemGroup>
 
 </Project>

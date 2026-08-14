@@ -3,6 +3,12 @@ name: restaurantflow
 x-api-environment: &api-environment
   ASPNETCORE_ENVIRONMENT: Development
   ASPNETCORE_HTTP_PORTS: 8080
+  Authentication__Enabled: "true"
+  Authentication__Authority: http://keycloak:8080/realms/restaurantflow
+  Authentication__Audience: restaurantflow-api
+  Authentication__RequireHttpsMetadata: "false"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  OTEL_EXPORTER_OTLP_PROTOCOL: grpc
   RabbitMq__Host: rabbitmq
   RabbitMq__Username: restaurantflow
   RabbitMq__Password: restaurantflow
@@ -17,6 +23,7 @@ services:
     ports:
       - "8080:8080"
     depends_on:
+      - keycloak
       - menu-api
       - orders-api
       - kitchen-api
@@ -34,6 +41,8 @@ services:
         condition: service_healthy
       menu-migrations:
         condition: service_completed_successfully
+      keycloak:
+        condition: service_started
 
   menu-migrations:
     build:
@@ -56,6 +65,9 @@ services:
       <<: *api-environment
       ConnectionStrings__Database: Host=orders-db;Database=orders;Username=postgres;Password=postgres
       Services__Menu: http://menu-api:8080
+      Authentication__TokenEndpoint: http://keycloak:8080/realms/restaurantflow/protocol/openid-connect/token
+      Authentication__ClientId: orders-service
+      Authentication__ClientSecret: local-orders-secret
     depends_on:
       orders-db:
         condition: service_healthy
@@ -65,6 +77,8 @@ services:
         condition: service_started
       orders-migrations:
         condition: service_completed_successfully
+      keycloak:
+        condition: service_started
 
   orders-migrations:
     build:
@@ -93,6 +107,8 @@ services:
         condition: service_healthy
       kitchen-migrations:
         condition: service_completed_successfully
+      keycloak:
+        condition: service_started
 
   kitchen-migrations:
     build:
@@ -121,6 +137,8 @@ services:
         condition: service_healthy
       payments-migrations:
         condition: service_completed_successfully
+      keycloak:
+        condition: service_started
 
   payments-migrations:
     build:
@@ -143,9 +161,25 @@ services:
       RabbitMq__Host: rabbitmq
       RabbitMq__Username: restaurantflow
       RabbitMq__Password: restaurantflow
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     depends_on:
       rabbitmq:
         condition: service_healthy
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.0
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: http://keycloak:8080
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./deploy/keycloak/restaurantflow-realm.json:/opt/keycloak/data/import/restaurantflow-realm.json:ro
+    ports:
+      - "8081:8080"
 
   rabbitmq:
     image: rabbitmq:4.2-management-alpine
@@ -159,6 +193,65 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.158.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./deploy/observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "13133:13133"
+    depends_on:
+      - tempo
+      - loki
+
+  prometheus:
+    image: prom/prometheus:v3.6.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --web.enable-remote-write-receiver
+    volumes:
+      - ./deploy/observability/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+
+  tempo:
+    image: grafana/tempo:2.10.0
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./deploy/observability/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"
+
+  loki:
+    image: grafana/loki:3.7.3
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./deploy/observability/loki.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+
+  grafana:
+    image: grafana/grafana:13.1.1
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./deploy/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
 
   menu-db:
     image: postgres:18-alpine
@@ -193,3 +286,7 @@ volumes:
   orders-data:
   kitchen-data:
   payments-data:
+  prometheus-data:
+  tempo-data:
+  loki-data:
+  grafana-data:

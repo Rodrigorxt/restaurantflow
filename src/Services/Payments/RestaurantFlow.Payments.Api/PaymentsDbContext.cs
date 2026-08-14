@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MassTransit;
 
 namespace RestaurantFlow.Payments.Api;
 
@@ -17,6 +18,9 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
             entity.Property(payment => payment.Status).HasMaxLength(30);
             entity.Property(payment => payment.DeclineReason).HasMaxLength(500);
         });
+
+        modelBuilder.AddInboxStateEntity();
+        modelBuilder.AddOutboxMessageEntity();
+        modelBuilder.AddOutboxStateEntity();
     }
 }
-

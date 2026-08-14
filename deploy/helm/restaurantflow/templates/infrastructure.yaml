@@ -1,3 +1,4 @@
+{{- if .Values.infrastructure.deployRabbitMq }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -11,6 +12,8 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: rabbitmq }
     spec:
+      serviceAccountName: {{ include "restaurantflow.serviceAccountName" . }}
+      automountServiceAccountToken: false
       containers:
         - name: rabbitmq
           image: {{ .Values.rabbitmq.image }}
@@ -19,9 +22,9 @@ spec:
             - { name: management, containerPort: 15672 }
           env:
             - name: RABBITMQ_DEFAULT_USER
-              valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: rabbitmq-username } }
+              valueFrom: { secretKeyRef: { name: {{ include "restaurantflow.secretName" . }}, key: rabbitmq-username } }
             - name: RABBITMQ_DEFAULT_PASS
-              valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: rabbitmq-password } }
+              valueFrom: { secretKeyRef: { name: {{ include "restaurantflow.secretName" . }}, key: rabbitmq-password } }
           readinessProbe:
             exec: { command: ["rabbitmq-diagnostics", "-q", "ping"] }
             initialDelaySeconds: 15
@@ -38,6 +41,8 @@ spec:
     - { name: amqp, port: 5672, targetPort: amqp }
     - { name: management, port: 15672, targetPort: management }
 ---
+{{- end }}
+{{- if .Values.infrastructure.deployPostgres }}
 {{- range $database := list "menu" "orders" "kitchen" "payments" }}
 apiVersion: apps/v1
 kind: StatefulSet
@@ -53,6 +58,8 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: {{ $database }}-db }
     spec:
+      serviceAccountName: {{ include "restaurantflow.serviceAccountName" $ }}
+      automountServiceAccountToken: false
       containers:
         - name: postgres
           image: {{ $.Values.postgres.image }}
@@ -60,7 +67,7 @@ spec:
           env:
             - { name: POSTGRES_DB, value: {{ $database }} }
             - name: POSTGRES_PASSWORD
-              valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: postgres-password } }
+              valueFrom: { secretKeyRef: { name: {{ include "restaurantflow.secretName" $ }}, key: postgres-password } }
           volumeMounts: [{ name: data, mountPath: /var/lib/postgresql }]
           readinessProbe:
             exec: { command: ["pg_isready", "-U", "postgres"] }
@@ -84,4 +91,4 @@ spec:
   ports: [{ name: postgres, port: 5432, targetPort: postgres }]
 ---
 {{- end }}
-
+{{- end }}

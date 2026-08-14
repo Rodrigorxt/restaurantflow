@@ -1,5 +1,27 @@
 @host = http://localhost:8080
+@identity = http://localhost:8081
 @customerId = 2d42a448-d6ea-4577-9b76-98f38682b820
+
+### Obtain an administrator token
+# @name adminLogin
+POST {{identity}}/realms/restaurantflow/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id=restaurantflow-cli&username=restaurant-admin&password=admin
+
+### Obtain a customer token
+# @name customerLogin
+POST {{identity}}/realms/restaurantflow/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id=restaurantflow-cli&username=customer&password=customer
+
+### Obtain a kitchen operator token
+# @name kitchenLogin
+POST {{identity}}/realms/restaurantflow/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id=restaurantflow-cli&username=kitchen&password=kitchen
 
 ### Check the gateway
 GET {{host}}/health
@@ -8,6 +30,7 @@ GET {{host}}/health
 # @name createMenuItem
 POST {{host}}/api/menu/items
 Content-Type: application/json
+Authorization: Bearer {{adminLogin.response.body.$.access_token}}
 
 {
   "name": "Truffle Burger",
@@ -23,6 +46,7 @@ GET {{host}}/api/menu/items
 # @name createApprovedOrder
 POST {{host}}/api/orders
 Content-Type: application/json
+Authorization: Bearer {{customerLogin.response.body.$.access_token}}
 
 {
   "customerId": "{{customerId}}",
@@ -38,11 +62,17 @@ Content-Type: application/json
 
 ### Read the approved order after asynchronous processing
 GET {{host}}/api/orders/{{createApprovedOrder.response.body.$.id}}
+Authorization: Bearer {{customerLogin.response.body.$.access_token}}
+
+### Inspect the approved order workflow saga
+GET {{host}}/api/orders/{{createApprovedOrder.response.body.$.id}}/workflow
+Authorization: Bearer {{customerLogin.response.body.$.access_token}}
 
 ### Simulate a declined payment
 # @name createDeclinedOrder
 POST {{host}}/api/orders
 Content-Type: application/json
+Authorization: Bearer {{customerLogin.response.body.$.access_token}}
 
 {
   "customerId": "{{customerId}}",
@@ -58,6 +88,12 @@ Content-Type: application/json
 
 ### Read the declined order after asynchronous processing
 GET {{host}}/api/orders/{{createDeclinedOrder.response.body.$.id}}
+Authorization: Bearer {{customerLogin.response.body.$.access_token}}
+
+### Inspect the compensated workflow saga
+GET {{host}}/api/orders/{{createDeclinedOrder.response.body.$.id}}/workflow
+Authorization: Bearer {{customerLogin.response.body.$.access_token}}
 
 ### List kitchen tickets
 GET {{host}}/api/kitchen/tickets
+Authorization: Bearer {{kitchenLogin.response.body.$.access_token}}

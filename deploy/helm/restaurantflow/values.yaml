@@ -5,8 +5,31 @@ image:
   tag: latest
   pullPolicy: IfNotPresent
 
+serviceAccount:
+  create: true
+  name: restaurantflow
+
+secrets:
+  create: true
+  name: restaurantflow-secrets
+
+externalSecrets:
+  enabled: false
+  secretStoreName: restaurantflow
+  secretStoreKind: ClusterSecretStore
+  refreshInterval: 1h
+  remoteKey: restaurantflow/production
+
+infrastructure:
+  deployRabbitMq: true
+  deployPostgres: true
+
+externalConnections:
+  enabled: false
+
 rabbitmq:
   image: rabbitmq:4.2-management-alpine
+  host: rabbitmq
   username: restaurantflow
   password: restaurantflow
 
@@ -14,6 +37,15 @@ postgres:
   image: postgres:18-alpine
   password: postgres
   storage: 1Gi
+
+authentication:
+  enabled: true
+  authority: https://identity.example.com/realms/restaurantflow
+  audience: restaurantflow-api
+  requireHttpsMetadata: true
+  tokenEndpoint: https://identity.example.com/realms/restaurantflow/protocol/openid-connect/token
+  ordersClientId: orders-service
+  ordersClientSecret: replace-in-secret-store
 
 services:
   gateway:
@@ -56,6 +88,19 @@ autoscaling:
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
 
+availability:
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  topologySpread:
+    enabled: true
+
+ingress:
+  enabled: false
+  className: nginx
+  host: api.restaurantflow.example.com
+  tlsSecretName: restaurantflow-tls
+
 resources:
   requests:
     cpu: 100m
@@ -63,4 +108,3 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
-

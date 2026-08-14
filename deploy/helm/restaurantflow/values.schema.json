@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["image", "services", "authentication", "resources"],
+  "properties": {
+    "image": {
+      "type": "object",
+      "required": ["repositoryPrefix", "tag", "pullPolicy"],
+      "properties": {
+        "repositoryPrefix": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string", "minLength": 1 },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    },
+    "secrets": {
+      "type": "object",
+      "required": ["create", "name"],
+      "properties": {
+        "create": { "type": "boolean" },
+        "name": { "type": "string", "minLength": 1 }
+      }
+    },
+    "externalConnections": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": { "enabled": { "type": "boolean" } }
+    },
+    "authentication": {
+      "type": "object",
+      "required": ["enabled", "authority", "audience"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "authority": { "type": "string", "minLength": 1 },
+        "audience": { "type": "string", "minLength": 1 },
+        "requireHttpsMetadata": { "type": "boolean" }
+      }
+    },
+    "services": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["image", "replicas"],
+        "properties": {
+          "image": { "type": "string", "minLength": 1 },
+          "replicas": { "type": "integer", "minimum": 1 },
+          "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+        }
+      }
+    },
+    "resources": { "type": "object" }
+  }
+}

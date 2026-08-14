@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: RestaurantFlow
+    orgId: 1
+    folder: RestaurantFlow
+    type: file
+    disableDeletion: true
+    editable: false
+    options:
+      path: /var/lib/grafana/dashboards

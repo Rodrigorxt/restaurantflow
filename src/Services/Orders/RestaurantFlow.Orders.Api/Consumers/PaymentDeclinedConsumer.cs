@@ -5,9 +5,9 @@ using RestaurantFlow.Orders.Api.Infrastructure;
 
 namespace RestaurantFlow.Orders.Api.Consumers;
 
-public sealed class PaymentDeclinedConsumer(OrdersDbContext dbContext) : IConsumer<PaymentDeclined>
+public sealed class PaymentDeclinedConsumer(OrdersDbContext dbContext) : IConsumer<CancelOrder>
 {
-    public async Task Consume(ConsumeContext<PaymentDeclined> context)
+    public async Task Consume(ConsumeContext<CancelOrder> context)
     {
         var order = await dbContext.Orders.SingleOrDefaultAsync(
             order => order.Id == context.Message.OrderId,
@@ -19,4 +19,3 @@ public sealed class PaymentDeclinedConsumer(OrdersDbContext dbContext) : IConsum
         await dbContext.SaveChangesAsync(context.CancellationToken);
     }
 }
-

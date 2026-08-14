@@ -5,11 +5,15 @@ RestaurantFlow uses independently deployable services aligned with restaurant bu
 ```mermaid
 flowchart LR
     Client --> Gateway[API Gateway]
+    Identity[OIDC Provider] --> Gateway
+    Identity --> Orders
+    Identity --> Menu
     Gateway --> Menu
     Gateway --> Orders
     Gateway --> Kitchen
     Gateway --> Payments
     Orders -- "POST /internal/menu/items/resolve" --> Menu
+    Orders -- "OAuth client credentials" --> Identity
     Orders --> Broker[RabbitMQ]
     Broker --> Orders
     Broker --> Payments
@@ -33,6 +37,10 @@ flowchart LR
 - **Gateway** exposes public routes. Internal Menu resolution is not routed publicly.
 
 No service reads another service's database.
+
+## Identity and access
+
+An OIDC provider issues audience-restricted JWT access tokens. Gateway routes and API endpoints enforce the same named role policies. Orders derives customer ownership from `sub` and `email` claims and uses its own client-credentials identity for the private Menu lookup. See [Security model](security.md).
 
 ## Order submission
 
@@ -61,14 +69,15 @@ The Menu HTTP client uses standard resilience policies for transient failures: t
 
 ## Asynchronous workflow
 
-1. `OrderSubmitted` starts payment processing.
-2. Payments publishes `PaymentAuthorized` or `PaymentDeclined`.
-3. Kitchen creates a ticket only after payment authorization.
-4. Kitchen publishes preparation and ready events.
-5. Orders updates its lifecycle from those events.
-6. Notifications consumes customer-relevant events independently.
+1. `OrderSubmitted` creates the persisted workflow saga.
+2. The saga publishes `AuthorizePayment`.
+3. Payments publishes `PaymentAuthorized` or `PaymentDeclined` through its transactional outbox.
+4. Authorization makes the saga publish `CreateKitchenTicket`; a decline publishes the compensating `CancelOrder` command.
+5. Kitchen publishes preparation and ready events through its transactional outbox.
+6. Orders updates its aggregate while the saga records the distributed workflow state.
+7. Notifications consumes customer-relevant events independently.
 
-Delivery is at least once. Consumers therefore need stable message identifiers, unique business keys, retries, and idempotent state transitions. Orders currently uses a transactional outbox. Extending outbox and inbox persistence to all participants is a planned hardening milestone.
+Delivery is at least once. Core consumers use the MassTransit Entity Framework Inbox, unique business keys, retries, and idempotent state transitions. Orders, Payments, and Kitchen store outgoing messages in the same PostgreSQL transaction as business changes. The saga uses pessimistic PostgreSQL concurrency and keeps final workflow records for diagnostics.
 
 ## Persistence and migrations
 
@@ -84,9 +93,8 @@ This prevents horizontally scaled API replicas from racing to modify the same sc
 
 Docker Compose provides a reproducible local environment. The Helm chart provides rolling deployments, health probes, resource requests and limits, restrictive security contexts, network policies, persistent storage, and horizontal pod autoscaling for selected workloads.
 
-The in-cluster PostgreSQL and RabbitMQ resources are demonstration infrastructure. Production deployments should use managed or highly available equivalents, external secret management, immutable image tags, TLS, backup policies, and tested disaster recovery.
+The default in-cluster PostgreSQL and RabbitMQ resources are demonstration infrastructure. The production Helm profile disables them, consumes managed-service connections from External Secrets, enables TLS Ingress, requires immutable image references, removes automatic workload API tokens, spreads replicas across failure domains, and protects replicas with disruption budgets. Backup policies and tested disaster recovery remain environment responsibilities.
 
 ## Observability
 
-The shared observability building block instruments ASP.NET Core, outbound HTTP, runtime metrics, and distributed operations with OpenTelemetry and OTLP export. A complete local collector and dashboard stack remains a planned milestone.
-
+The shared observability building block instruments ASP.NET Core, outbound HTTP, runtime metrics, MassTransit operations, and structured logs with OpenTelemetry. Services export OTLP to a central Collector, which routes metrics to Prometheus, traces to Tempo, and logs to Loki. Grafana provisions all three data sources and a service dashboard with trace-to-log correlation. See [Observability](observability.md).

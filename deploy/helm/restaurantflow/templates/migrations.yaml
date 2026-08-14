@@ -17,6 +17,8 @@ spec:
         app.kubernetes.io/name: {{ $name }}-migrations
         app.kubernetes.io/part-of: restaurantflow
     spec:
+      serviceAccountName: {{ include "restaurantflow.serviceAccountName" $ }}
+      automountServiceAccountToken: false
       restartPolicy: OnFailure
       securityContext:
         runAsNonRoot: true
@@ -32,10 +34,15 @@ spec:
             capabilities:
               drop: ["ALL"]
           env:
+            {{- if $.Values.externalConnections.enabled }}
+            - name: ConnectionStrings__Database
+              valueFrom: { secretKeyRef: { name: {{ include "restaurantflow.secretName" $ }}, key: {{ $service.database }}-connection } }
+            {{- else }}
             - name: POSTGRES_PASSWORD
-              valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: postgres-password } }
+              valueFrom: { secretKeyRef: { name: {{ include "restaurantflow.secretName" $ }}, key: postgres-password } }
             - name: ConnectionStrings__Database
               value: "Host={{ $service.database }}-db;Database={{ $service.database }};Username=postgres;Password=$(POSTGRES_PASSWORD)"
+            {{- end }}
             - name: Database__Migrate
               value: "true"
             - name: Database__MigrationsOnly
