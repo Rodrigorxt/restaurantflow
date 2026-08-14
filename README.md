@@ -139,11 +139,9 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It provide
 | OAuth client credentials for Orders to Menu | Implemented |
 | Full consumer idempotency coverage | Implemented for core workflow |
 | Local observability dashboard stack | Implemented |
-| RabbitMQ and full workflow integration tests | Planned |
+| RabbitMQ and full workflow integration tests | Implemented in Docker Compose CI |
 | Production secret provider and managed cloud services profile | Implemented |
 
 ## Next milestones
 
-1. Extend Testcontainers coverage to RabbitMQ and the complete order workflow.
-2. Add timeout and failure-injection tests for saga recovery paths.
-3. Add production overlays for managed Kubernetes, databases, messaging, and secret storage.
+1. Add timeout and failure-injection tests for saga recovery paths.

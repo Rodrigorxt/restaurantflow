@@ -62,3 +62,12 @@ GitHub-hosted Linux runners provide Docker, so the standard test step runs all s
 - Duplicate-message and idempotency tests.
 - Complete approved and declined workflow tests.
 - Failure injection for unavailable Menu, Payments, and RabbitMQ dependencies.
+## Full workflow test
+
+`scripts/run-e2e.sh` exercises the deployed system through its public gateway. It obtains real Keycloak tokens, creates server-priced menu data, verifies an approved order through PostgreSQL-backed outboxes, RabbitMQ, payment authorization, the persisted saga, and kitchen ticket creation, then verifies the declined-payment compensation path and an anonymous authorization boundary.
+
+GitHub Actions starts the complete Docker Compose platform, runs this test, captures container diagnostics on failure, and removes all test volumes. Run it locally after `docker compose up --build -d`:
+
+```bash
+./scripts/run-e2e.sh
+```
