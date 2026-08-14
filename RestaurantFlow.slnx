@@ -1,0 +1,29 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/RestaurantFlow.Contracts/RestaurantFlow.Contracts.csproj" />
+    <Project Path="src/BuildingBlocks/RestaurantFlow.Observability/RestaurantFlow.Observability.csproj" />
+  </Folder>
+  <Folder Name="/src/Gateway/">
+    <Project Path="src/Gateway/RestaurantFlow.Gateway/RestaurantFlow.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/Kitchen/">
+    <Project Path="src/Services/Kitchen/RestaurantFlow.Kitchen.Api/RestaurantFlow.Kitchen.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Menu/">
+    <Project Path="src/Services/Menu/RestaurantFlow.Menu.Api/RestaurantFlow.Menu.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Notifications/">
+    <Project Path="src/Services/Notifications/RestaurantFlow.Notifications.Worker/RestaurantFlow.Notifications.Worker.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Orders/">
+    <Project Path="src/Services/Orders/RestaurantFlow.Orders.Api/RestaurantFlow.Orders.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Payments/">
+    <Project Path="src/Services/Payments/RestaurantFlow.Payments.Api/RestaurantFlow.Payments.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RestaurantFlow.ArchitectureTests/RestaurantFlow.ArchitectureTests.csproj" />
+  </Folder>
+</Solution>
