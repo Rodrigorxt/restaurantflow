@@ -1,0 +1,7 @@
+apiVersion: v2
+name: restaurantflow
+description: A scalable event-driven restaurant ordering platform
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+

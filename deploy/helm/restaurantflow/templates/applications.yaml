@@ -1,0 +1,116 @@
+{{- range $name, $service := .Values.services }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    {{- include "restaurantflow.labels" $ | nindent 4 }}
+spec:
+  replicas: {{ $service.replicas }}
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}
+        app.kubernetes.io/part-of: restaurantflow
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: {{ $name }}
+          image: "{{ $.Values.image.repositoryPrefix }}-{{ $service.image }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          envFrom:
+            - configMapRef:
+                name: restaurantflow-config
+          env:
+            - name: RabbitMq__Username
+              valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: rabbitmq-username } }
+            - name: RabbitMq__Password
+              valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: rabbitmq-password } }
+            {{- if $service.database }}
+            - name: ConnectionStrings__Database
+              value: "Host={{ $service.database }}-db;Database={{ $service.database }};Username=postgres;Password=$(POSTGRES_PASSWORD)"
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: postgres-password } }
+            {{- end }}
+          {{- if $service.port }}
+          ports:
+            - name: http
+              containerPort: {{ $service.port }}
+          {{- end }}
+          {{- if $service.healthPath }}
+          readinessProbe:
+            httpGet: { path: {{ $service.healthPath }}, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: {{ $service.healthPath }}, port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          {{- end }}
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+{{- if $service.port }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  type: {{ if $service.public }}LoadBalancer{{ else }}ClusterIP{{ end }}
+  selector:
+    app.kubernetes.io/name: {{ $name }}
+  ports:
+    - name: http
+      port: {{ $service.port }}
+      targetPort: http
+---
+{{- end }}
+{{- if and $.Values.autoscaling.enabled (or (eq $name "gateway") (eq $name "orders-api") (eq $name "notifications-worker")) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $name }}
+  minReplicas: {{ $.Values.autoscaling.minReplicas }}
+  maxReplicas: {{ $.Values.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $.Values.autoscaling.targetCPUUtilizationPercentage }}
+---
+{{- end }}
+{{- end }}
+
