@@ -1,0 +1,39 @@
+image:
+  repositoryPrefix: ghcr.io/your-organization/restaurantflow
+  tag: replace-with-immutable-sha
+  pullPolicy: IfNotPresent
+
+secrets:
+  create: false
+  name: restaurantflow-secrets
+
+externalSecrets:
+  enabled: true
+  secretStoreName: production-secrets
+  secretStoreKind: ClusterSecretStore
+  remoteKey: restaurantflow/production
+
+infrastructure:
+  deployRabbitMq: false
+  deployPostgres: false
+
+externalConnections:
+  enabled: true
+
+rabbitmq:
+  host: replace-with-managed-rabbitmq-host
+  username: unused
+  password: unused
+
+authentication:
+  authority: https://identity.example.com/realms/restaurantflow
+  audience: restaurantflow-api
+  requireHttpsMetadata: true
+  tokenEndpoint: https://identity.example.com/realms/restaurantflow/protocol/openid-connect/token
+  ordersClientSecret: unused
+
+ingress:
+  enabled: true
+  className: nginx
+  host: api.restaurantflow.example.com
+  tlsSecretName: restaurantflow-tls

@@ -93,7 +93,7 @@ This prevents horizontally scaled API replicas from racing to modify the same sc
 
 Docker Compose provides a reproducible local environment. The Helm chart provides rolling deployments, health probes, resource requests and limits, restrictive security contexts, network policies, persistent storage, and horizontal pod autoscaling for selected workloads.
 
-The in-cluster PostgreSQL and RabbitMQ resources are demonstration infrastructure. Production deployments should use managed or highly available equivalents, external secret management, immutable image tags, TLS, backup policies, and tested disaster recovery.
+The default in-cluster PostgreSQL and RabbitMQ resources are demonstration infrastructure. The production Helm profile disables them, consumes managed-service connections from External Secrets, enables TLS Ingress, requires immutable image references, removes automatic workload API tokens, spreads replicas across failure domains, and protects replicas with disruption budgets. Backup policies and tested disaster recovery remain environment responsibilities.
 
 ## Observability
 

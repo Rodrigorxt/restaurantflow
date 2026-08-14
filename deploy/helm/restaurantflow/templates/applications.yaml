@@ -24,6 +24,8 @@ spec:
         app.kubernetes.io/name: {{ $name }}
         app.kubernetes.io/part-of: restaurantflow
     spec:
+      serviceAccountName: {{ include "restaurantflow.serviceAccountName" $ }}
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         seccompProfile:
@@ -42,18 +44,23 @@ spec:
                 name: restaurantflow-config
           env:
             - name: RabbitMq__Username
-              valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: rabbitmq-username } }
+              valueFrom: { secretKeyRef: { name: {{ include "restaurantflow.secretName" $ }}, key: rabbitmq-username } }
             - name: RabbitMq__Password
-              valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: rabbitmq-password } }
+              valueFrom: { secretKeyRef: { name: {{ include "restaurantflow.secretName" $ }}, key: rabbitmq-password } }
             {{- if eq $name "orders-api" }}
             - name: Authentication__ClientSecret
-              valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: orders-client-secret } }
+              valueFrom: { secretKeyRef: { name: {{ include "restaurantflow.secretName" $ }}, key: orders-client-secret } }
             {{- end }}
             {{- if $service.database }}
+            {{- if $.Values.externalConnections.enabled }}
+            - name: ConnectionStrings__Database
+              valueFrom: { secretKeyRef: { name: {{ include "restaurantflow.secretName" $ }}, key: {{ $service.database }}-connection } }
+            {{- else }}
             - name: POSTGRES_PASSWORD
-              valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: postgres-password } }
+              valueFrom: { secretKeyRef: { name: {{ include "restaurantflow.secretName" $ }}, key: postgres-password } }
             - name: ConnectionStrings__Database
               value: "Host={{ $service.database }}-db;Database={{ $service.database }};Username=postgres;Password=$(POSTGRES_PASSWORD)"
+            {{- end }}
             {{- end }}
           {{- if $service.port }}
           ports:
@@ -77,6 +84,21 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
+      {{- if $.Values.availability.topologySpread.enabled }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ $name }}
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ $name }}
+      {{- end }}
 ---
 {{- if $service.port }}
 apiVersion: v1
@@ -114,6 +136,19 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ $.Values.autoscaling.targetCPUUtilizationPercentage }}
+---
+{{- end }}
+{{- if and $.Values.availability.podDisruptionBudget.enabled (gt (int $service.replicas) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  minAvailable: {{ $.Values.availability.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
 ---
 {{- end }}
 {{- end }}

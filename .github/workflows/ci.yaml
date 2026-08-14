@@ -23,6 +23,8 @@ jobs:
         run: dotnet build RestaurantFlow.slnx --configuration Release --no-restore
       - name: Test
         run: dotnet test RestaurantFlow.slnx --configuration Release --no-build --logger trx
+      - name: Audit NuGet dependencies
+        run: dotnet package list --project RestaurantFlow.slnx --vulnerable --include-transitive --format json | tee dependency-audit.json
       - name: Validate Docker Compose
         run: docker compose config --quiet
 
@@ -35,4 +37,5 @@ jobs:
         run: helm lint deploy/helm/restaurantflow
       - name: Render chart
         run: helm template restaurantflow deploy/helm/restaurantflow --namespace restaurantflow > rendered.yaml
-
+      - name: Render production profile
+        run: helm template restaurantflow deploy/helm/restaurantflow --namespace restaurantflow --values deploy/helm/restaurantflow/values-production.yaml > rendered-production.yaml

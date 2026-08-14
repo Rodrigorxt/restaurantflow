@@ -1,6 +1,6 @@
 # Kubernetes deployment
 
-The Helm chart deploys RestaurantFlow into a dedicated namespace. It includes application Deployments and Services, RabbitMQ, isolated PostgreSQL StatefulSets, versioned database migration Jobs, persistent storage, health probes, resource boundaries, restrictive container security contexts, network policies, and horizontal autoscaling.
+The Helm chart deploys RestaurantFlow into a dedicated namespace. It includes application Deployments and Services, RabbitMQ, isolated PostgreSQL StatefulSets, versioned database migration Jobs, persistent storage, health probes, resource boundaries, restrictive container security contexts, granular network policies, topology spreading, disruption budgets, and horizontal autoscaling.
 
 ## Prerequisites
 
@@ -47,13 +47,27 @@ kubectl port-forward service/gateway 8080:8080 \
 
 ## Production overrides
 
-The included RabbitMQ and PostgreSQL resources are intended for portfolio and development environments. A production deployment should override or replace:
+`values-production.yaml` is a documented production profile. It disables the embedded RabbitMQ and PostgreSQL resources, reads managed-service connection strings and credentials through External Secrets, enables TLS Ingress, and expects an immutable image reference.
+
+```bash
+helm upgrade --install restaurantflow ./deploy/helm/restaurantflow \
+  --namespace restaurantflow \
+  --create-namespace \
+  --values ./deploy/helm/restaurantflow/values-production.yaml \
+  --set image.repositoryPrefix=ghcr.io/acme/restaurantflow \
+  --set image.tag=sha-0123456789abcdef \
+  --set rabbitmq.host=rabbitmq.example.internal \
+  --set ingress.host=api.restaurantflow.example.com
+```
+
+The external secret must provide `rabbitmq-username`, `rabbitmq-password`, `orders-client-secret`, and the `menu-connection`, `orders-connection`, `kitchen-connection`, and `payments-connection` keys. The External Secrets operator and referenced `SecretStore` or `ClusterSecretStore` must already exist.
+
+Environment owners must still define and verify:
 
 - image repository prefix and immutable image tag
 - PostgreSQL and RabbitMQ credentials
 - storage classes and volume sizes
-- in-cluster databases and broker with managed or highly available services
-- plain Kubernetes Secrets with an external secret provider
+- managed PostgreSQL and RabbitMQ availability, TLS, backups, and restore procedures
 - OIDC authority, audience, and Orders workload credentials
 - ingress, TLS, DNS, and certificate management
 - backup, restore, retention, and disaster-recovery policies

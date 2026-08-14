@@ -116,11 +116,11 @@ The GitHub Actions pipeline restores, builds, runs unit, architecture, and conta
 - Standard HTTP resilience policies protect synchronous service calls.
 - Explicit migration workloads avoid concurrent schema changes across replicas.
 - OpenTelemetry instruments ASP.NET Core, HTTP clients, runtime metrics, and MassTransit flows.
-- Kubernetes workloads include rolling updates, probes, resource limits, restrictive security contexts, network policies, persistent volumes, and horizontal autoscaling.
+- Kubernetes workloads include rolling updates, probes, resource limits, restrictive security contexts, granular network policies, topology spreading, disruption budgets, and horizontal autoscaling.
 
 ## Kubernetes
 
-The Helm chart is documented in [deploy/README.md](deploy/README.md). It deploys application services, isolated PostgreSQL instances, RabbitMQ, migration Jobs, Services, network policies, and autoscaling resources.
+The Helm chart is documented in [deploy/README.md](deploy/README.md). It provides self-contained development infrastructure and a production profile for managed PostgreSQL, managed RabbitMQ, External Secrets, TLS Ingress, migration Jobs, availability controls, network policies, and autoscaling.
 
 ## Current status
 
@@ -140,7 +140,7 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It deploys
 | Full consumer idempotency coverage | Implemented for core workflow |
 | Local observability dashboard stack | Implemented |
 | RabbitMQ and full workflow integration tests | Planned |
-| Production secret provider and managed cloud databases | Planned |
+| Production secret provider and managed cloud services profile | Implemented |
 
 ## Next milestones
 
