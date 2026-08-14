@@ -4,6 +4,7 @@ using RestaurantFlow.Contracts;
 using RestaurantFlow.Orders.Api.Consumers;
 using RestaurantFlow.Orders.Api.Domain;
 using RestaurantFlow.Orders.Api.Infrastructure;
+using RestaurantFlow.Orders.Api.Integrations;
 using RestaurantFlow.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,13 @@ builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<OrdersDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services
+    .AddHttpClient<MenuCatalogClient>(client =>
+    {
+        client.BaseAddress = new Uri(builder.Configuration["Services:Menu"] ?? "http://localhost:5232");
+        client.Timeout = TimeSpan.FromSeconds(10);
+    })
+    .AddStandardResilienceHandler();
 builder.Services.AddMassTransit(configurator =>
 {
     configurator.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("orders", false));
@@ -37,19 +45,41 @@ builder.Services.AddMassTransit(configurator =>
 });
 
 var app = builder.Build();
-await using (var scope = app.Services.CreateAsyncScope())
+if (builder.Configuration.GetValue<bool>("Database:Migrate"))
 {
+    await using var scope = app.Services.CreateAsyncScope();
     await scope.ServiceProvider.GetRequiredService<OrdersDbContext>().Database.MigrateAsync();
+    if (builder.Configuration.GetValue<bool>("Database:MigrationsOnly")) return;
 }
 app.UseExceptionHandler();
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.MapHealthChecks("/health");
 
-app.MapPost("/api/orders", async (PlaceOrderRequest request, OrdersDbContext dbContext, IPublishEndpoint publisher, CancellationToken cancellationToken) =>
+app.MapPost("/api/orders", async (PlaceOrderRequest request, MenuCatalogClient menuCatalog, OrdersDbContext dbContext, IPublishEndpoint publisher, CancellationToken cancellationToken) =>
 {
     try
     {
-        var items = request.Items.Select(item => OrderItem.Create(item.MenuItemId, item.Name, item.Quantity, item.UnitPrice));
+        var requestedItems = request.Items.ToArray();
+        if (requestedItems.Length == 0)
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["items"] = ["At least one item is required."] });
+        if (requestedItems.Any(item => item.Quantity <= 0))
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["items"] = ["Every item quantity must be positive."] });
+        if (requestedItems.Select(item => item.MenuItemId).Distinct().Count() != requestedItems.Length)
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["items"] = ["Duplicate menu items are not allowed."] });
+
+        var menuItems = await menuCatalog.ResolveAsync(requestedItems.Select(item => item.MenuItemId), cancellationToken);
+        var unavailableItemIds = requestedItems.Select(item => item.MenuItemId).Except(menuItems.Keys).ToArray();
+        if (unavailableItemIds.Length > 0)
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["items"] = [$"Menu items are missing or unavailable: {string.Join(", ", unavailableItemIds)}."]
+            });
+
+        var items = requestedItems.Select(item =>
+        {
+            var menuItem = menuItems[item.MenuItemId];
+            return OrderItem.Create(menuItem.Id, menuItem.Name, item.Quantity, menuItem.Price);
+        });
         var order = Order.Place(request.CustomerId, request.CustomerEmail, items);
         dbContext.Orders.Add(order);
 
@@ -81,6 +111,6 @@ app.MapGet("/api/orders/{id:guid}", async (Guid id, OrdersDbContext dbContext, C
 app.Run();
 
 public sealed record PlaceOrderRequest(Guid CustomerId, string CustomerEmail, string PaymentReference, IReadOnlyCollection<PlaceOrderItemRequest> Items);
-public sealed record PlaceOrderItemRequest(Guid MenuItemId, string Name, int Quantity, decimal UnitPrice);
+public sealed record PlaceOrderItemRequest(Guid MenuItemId, int Quantity);
 
 public partial class Program;

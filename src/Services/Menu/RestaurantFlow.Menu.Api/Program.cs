@@ -12,9 +12,11 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<MenuDbContext>(options => options.UseNpgsql(connectionString));
 
 var app = builder.Build();
-await using (var scope = app.Services.CreateAsyncScope())
+if (builder.Configuration.GetValue<bool>("Database:Migrate"))
 {
+    await using var scope = app.Services.CreateAsyncScope();
     await scope.ServiceProvider.GetRequiredService<MenuDbContext>().Database.MigrateAsync();
+    if (builder.Configuration.GetValue<bool>("Database:MigrationsOnly")) return;
 }
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.MapHealthChecks("/health");
@@ -23,6 +25,20 @@ app.MapGet("/api/menu/items", async (string? category, MenuDbContext dbContext, 
     var query = dbContext.MenuItems.AsNoTracking().Where(item => item.IsAvailable);
     if (!string.IsNullOrWhiteSpace(category)) query = query.Where(item => item.Category == category);
     return Results.Ok(await query.OrderBy(item => item.Category).ThenBy(item => item.Name).ToListAsync(cancellationToken));
+});
+app.MapPost("/internal/menu/items/resolve", async (ResolveMenuItemsRequest request, MenuDbContext dbContext, CancellationToken cancellationToken) =>
+{
+    var itemIds = request.ItemIds.Distinct().ToArray();
+    if (itemIds.Length == 0)
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["itemIds"] = ["At least one menu item is required."] });
+
+    var items = await dbContext.MenuItems
+        .AsNoTracking()
+        .Where(item => itemIds.Contains(item.Id) && item.IsAvailable)
+        .Select(item => new MenuItemSnapshot(item.Id, item.Name, item.Price))
+        .ToListAsync(cancellationToken);
+
+    return Results.Ok(items);
 });
 app.MapPost("/api/menu/items", async (CreateMenuItemRequest request, MenuDbContext dbContext, CancellationToken cancellationToken) =>
 {
@@ -50,4 +66,6 @@ app.Run();
 
 public sealed record CreateMenuItemRequest(string Name, string Description, string Category, decimal Price);
 public sealed record SetAvailabilityRequest(bool IsAvailable);
+public sealed record ResolveMenuItemsRequest(IReadOnlyCollection<Guid> ItemIds);
+public sealed record MenuItemSnapshot(Guid Id, string Name, decimal Price);
 public partial class Program;

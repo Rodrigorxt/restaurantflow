@@ -46,10 +46,10 @@ spec:
             - name: RabbitMq__Password
               valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: rabbitmq-password } }
             {{- if $service.database }}
-            - name: ConnectionStrings__Database
-              value: "Host={{ $service.database }}-db;Database={{ $service.database }};Username=postgres;Password=$(POSTGRES_PASSWORD)"
             - name: POSTGRES_PASSWORD
               valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: postgres-password } }
+            - name: ConnectionStrings__Database
+              value: "Host={{ $service.database }}-db;Database={{ $service.database }};Username=postgres;Password=$(POSTGRES_PASSWORD)"
             {{- end }}
           {{- if $service.port }}
           ports:
@@ -113,4 +113,3 @@ spec:
 ---
 {{- end }}
 {{- end }}
-

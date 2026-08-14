@@ -1,37 +1,92 @@
 # System architecture
 
-RestaurantFlow uses independently deployable services around restaurant business capabilities. HTTP is reserved for client-facing queries and commands that require an immediate response. RabbitMQ carries facts that have already happened and allows downstream services to process them independently.
+RestaurantFlow uses independently deployable services aligned with restaurant business capabilities. HTTP handles client operations and the price lookup that requires current Menu data. RabbitMQ carries completed business facts so downstream services can work independently.
 
 ```mermaid
 flowchart LR
-    Client --> Gateway
+    Client --> Gateway[API Gateway]
     Gateway --> Menu
     Gateway --> Orders
     Gateway --> Kitchen
-    Orders --> RabbitMQ
-    RabbitMQ --> Kitchen
-    RabbitMQ --> Payments
-    RabbitMQ --> Notifications
-    Kitchen --> RabbitMQ
-    Payments --> RabbitMQ
+    Gateway --> Payments
+    Orders -- "POST /internal/menu/items/resolve" --> Menu
+    Orders --> Broker[RabbitMQ]
+    Broker --> Orders
+    Broker --> Payments
+    Broker --> Kitchen
+    Broker --> Notifications
+    Kitchen --> Broker
+    Payments --> Broker
     Menu --> MenuDb[(Menu DB)]
-    Orders --> OrdersDb[(Orders DB)]
+    Orders --> OrdersDb[(Orders DB + Outbox)]
     Kitchen --> KitchenDb[(Kitchen DB)]
     Payments --> PaymentsDb[(Payments DB)]
 ```
 
-## Order workflow
+## Service boundaries
 
-1. Orders validates and accepts a customer's order.
-2. `OrderSubmitted` starts the distributed workflow.
-3. Payments authorizes the charge and publishes its result.
-4. Kitchen creates a preparation ticket after payment approval.
-5. Kitchen status events update the order projection.
+- **Menu** owns product descriptions, categories, availability, and prices.
+- **Orders** owns the order aggregate and its lifecycle. It stores an immutable name and price snapshot for every accepted line item.
+- **Payments** owns payment attempts and authorization outcomes.
+- **Kitchen** owns preparation tickets and kitchen progress.
+- **Notifications** reacts to customer-facing events without blocking the main workflow.
+- **Gateway** exposes public routes. Internal Menu resolution is not routed publicly.
+
+No service reads another service's database.
+
+## Order submission
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant G as Gateway
+    participant O as Orders
+    participant M as Menu
+    participant D as Orders DB
+    participant R as RabbitMQ
+
+    C->>G: Submit item IDs and quantities
+    G->>O: POST /api/orders
+    O->>M: Resolve current menu snapshots
+    M-->>O: Available names and prices
+    O->>O: Validate and calculate total
+    O->>D: Save order and outbox message
+    O-->>C: 202 Accepted
+    D-->>R: Deliver OrderSubmitted from outbox
+```
+
+The client cannot choose product names or prices. Missing or unavailable items cause validation failure. Duplicate items and non-positive quantities are rejected before persistence.
+
+The Menu HTTP client uses standard resilience policies for transient failures: total request timeout, retries, attempt timeout, and circuit breaking. If Menu is unavailable, Orders does not accept an order with unverifiable commercial data.
+
+## Asynchronous workflow
+
+1. `OrderSubmitted` starts payment processing.
+2. Payments publishes `PaymentAuthorized` or `PaymentDeclined`.
+3. Kitchen creates a ticket only after payment authorization.
+4. Kitchen publishes preparation and ready events.
+5. Orders updates its lifecycle from those events.
 6. Notifications consumes customer-relevant events independently.
 
-Messages can be delivered more than once. Consumers therefore use message identifiers and business keys to make processing idempotent. Database writes and event publication use the transactional outbox where losing an event would leave the workflow inconsistent.
+Delivery is at least once. Consumers therefore need stable message identifiers, unique business keys, retries, and idempotent state transitions. Orders currently uses a transactional outbox. Extending outbox and inbox persistence to all participants is a planned hardening milestone.
 
-## Data ownership
+## Persistence and migrations
 
-Services never query another service's database. A service obtains remote information through an API when freshness is required, or maintains a local projection from integration events when availability and throughput are more important.
+Each stateful service owns an isolated PostgreSQL database and its Entity Framework Core migrations. API processes do not migrate schemas by default.
+
+- Docker Compose starts one migration container per database and waits for successful completion before starting the corresponding API.
+- Helm renders one versioned Kubernetes Job per database for each release revision.
+- Migration processes enable `Database__Migrate=true` and `Database__MigrationsOnly=true`, apply pending migrations, and exit.
+
+This prevents horizontally scaled API replicas from racing to modify the same schema during startup.
+
+## Deployment and scaling
+
+Docker Compose provides a reproducible local environment. The Helm chart provides rolling deployments, health probes, resource requests and limits, restrictive security contexts, network policies, persistent storage, and horizontal pod autoscaling for selected workloads.
+
+The in-cluster PostgreSQL and RabbitMQ resources are demonstration infrastructure. Production deployments should use managed or highly available equivalents, external secret management, immutable image tags, TLS, backup policies, and tested disaster recovery.
+
+## Observability
+
+The shared observability building block instruments ASP.NET Core, outbound HTTP, runtime metrics, and distributed operations with OpenTelemetry and OTLP export. A complete local collector and dashboard stack remains a planned milestone.
 
