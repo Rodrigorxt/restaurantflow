@@ -138,10 +138,11 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It provide
 | OIDC authentication and policy authorization | Implemented |
 | OAuth client credentials for Orders to Menu | Implemented |
 | Full consumer idempotency coverage | Implemented for core workflow |
+| Broker outage and workflow recovery validation | Implemented |
 | Local observability dashboard stack | Implemented |
 | RabbitMQ and full workflow integration tests | Implemented in Docker Compose CI |
 | Production secret provider and managed cloud services profile | Implemented |
 
 ## Next milestones
 
-1. Add timeout and failure-injection tests for saga recovery paths.
+The core portfolio roadmap is complete. Future extensions can add real payment and notification providers, a customer-facing frontend, load-test baselines, and a cloud-specific Terraform deployment.

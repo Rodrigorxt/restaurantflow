@@ -91,4 +91,16 @@ declined_workflow="$(curl --silent --fail --header "Authorization: Bearer $custo
 anonymous_status="$(curl --silent --output /dev/null --write-out '%{http_code}' "$gateway_url/api/kitchen/tickets")"
 [[ "$anonymous_status" == "401" ]]
 
-echo "End-to-end workflow passed: approved=$approved_id declined=$declined_id"
+recovered_id="not-run"
+if [[ "${RUN_FAILURE_RECOVERY:-true}" == "true" ]]; then
+  docker compose stop payments-api >/dev/null
+  recovery_order="$(create_order "recovery-$suffix")"
+  recovered_id="$(jq --raw-output '.id' <<<"$recovery_order")"
+  sleep 5
+  pending_order="$(curl --silent --fail --header "Authorization: Bearer $customer_token" "$gateway_url/api/orders/$recovered_id")"
+  [[ "$(jq --raw-output '.status' <<<"$pending_order")" == "pending-payment" ]]
+  docker compose start payments-api >/dev/null
+  wait_for_order_status "$recovered_id" 'accepted-by-kitchen' "$customer_token" >/dev/null
+fi
+
+echo "End-to-end workflow passed: approved=$approved_id declined=$declined_id recovered=$recovered_id"
