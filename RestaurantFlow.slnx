@@ -25,5 +25,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/RestaurantFlow.ArchitectureTests/RestaurantFlow.ArchitectureTests.csproj" />
+    <Project Path="tests/RestaurantFlow.Orders.UnitTests/RestaurantFlow.Orders.UnitTests.csproj" />
   </Folder>
 </Solution>

@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using RestaurantFlow.Menu.Api;
+using RestaurantFlow.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddRestaurantFlowObservability("restaurantflow-menu");
 var connectionString = builder.Configuration.GetConnectionString("Database")
     ?? "Host=localhost;Port=5432;Database=menu;Username=postgres;Password=postgres";
 

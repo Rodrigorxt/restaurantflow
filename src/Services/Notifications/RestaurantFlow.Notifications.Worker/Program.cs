@@ -1,7 +1,9 @@
 using MassTransit;
 using RestaurantFlow.Notifications.Worker;
+using RestaurantFlow.Observability;
 
 var builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddRestaurantFlowObservability("restaurantflow-notifications");
 builder.Services.AddMassTransit(configurator =>
 {
     configurator.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("notifications", false));

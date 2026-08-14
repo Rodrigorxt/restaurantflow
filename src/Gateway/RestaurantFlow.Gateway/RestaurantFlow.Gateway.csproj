@@ -10,4 +10,8 @@
     <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\RestaurantFlow.Observability\RestaurantFlow.Observability.csproj" />
+  </ItemGroup>
+
 </Project>

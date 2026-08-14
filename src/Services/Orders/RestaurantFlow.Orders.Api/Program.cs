@@ -4,8 +4,10 @@ using RestaurantFlow.Contracts;
 using RestaurantFlow.Orders.Api.Consumers;
 using RestaurantFlow.Orders.Api.Domain;
 using RestaurantFlow.Orders.Api.Infrastructure;
+using RestaurantFlow.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddRestaurantFlowObservability("restaurantflow-orders");
 var connectionString = builder.Configuration.GetConnectionString("Database")
     ?? "Host=localhost;Port=5433;Database=orders;Username=postgres;Password=postgres";
 

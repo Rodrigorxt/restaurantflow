@@ -1,4 +1,7 @@
+using RestaurantFlow.Observability;
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddRestaurantFlowObservability("restaurantflow-gateway");
 builder.Services.AddHealthChecks();
 builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
@@ -8,4 +11,3 @@ app.MapReverseProxy();
 app.Run();
 
 public partial class Program;
-

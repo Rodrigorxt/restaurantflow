@@ -1,0 +1,38 @@
+name: continuous-integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore dependencies
+        run: dotnet restore RestaurantFlow.slnx
+      - name: Build
+        run: dotnet build RestaurantFlow.slnx --configuration Release --no-restore
+      - name: Test
+        run: dotnet test RestaurantFlow.slnx --configuration Release --no-build --logger trx
+      - name: Validate Docker Compose
+        run: docker compose config --quiet
+
+  validate-helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Lint chart
+        run: helm lint deploy/helm/restaurantflow
+      - name: Render chart
+        run: helm template restaurantflow deploy/helm/restaurantflow --namespace restaurantflow > rendered.yaml
+

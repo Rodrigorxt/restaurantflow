@@ -35,5 +35,32 @@ RestaurantFlow is a cloud-native restaurant ordering platform built to demonstra
 5. Add telemetry, Kubernetes resources, and deployment automation.
 6. Validate architecture and behavior with automated tests.
 
-The project is under active development. Local startup instructions will be added with the first end-to-end workflow.
+## Run locally
 
+Requirements: Docker Desktop with Docker Compose.
+
+```bash
+docker compose up --build -d
+```
+
+The API Gateway is available at `http://localhost:8080`. RabbitMQ Management is available at `http://localhost:15672` with the local credentials `restaurantflow` / `restaurantflow`.
+
+Use [`docs/demo.http`](docs/demo.http) to submit approved and declined orders. The approved flow progresses from Orders to Payments and Kitchen through RabbitMQ. Kitchen endpoints then move the ticket through preparation and ready states.
+
+```bash
+dotnet test RestaurantFlow.slnx --configuration Release
+helm lint deploy/helm/restaurantflow
+docker compose down
+```
+
+## Reliability and scalability
+
+- The Orders service publishes through the Entity Framework transactional outbox.
+- Consumers use service-prefixed queues, retry policies, and idempotent business keys.
+- Each stateful service owns an isolated PostgreSQL database.
+- OpenTelemetry exports distributed traces and runtime metrics over OTLP.
+- Kubernetes workloads use rolling updates, probes, resource limits, network policies, persistent volumes, and horizontal autoscaling.
+
+## Project status
+
+The first end-to-end order workflow is operational. Authentication, menu price validation, dedicated migration jobs, richer notification channels, and production secret management are tracked as the next delivery milestones.

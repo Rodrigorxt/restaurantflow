@@ -1,8 +1,10 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using RestaurantFlow.Payments.Api;
+using RestaurantFlow.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddRestaurantFlowObservability("restaurantflow-payments");
 var connectionString = builder.Configuration.GetConnectionString("Database")
     ?? "Host=localhost;Port=5435;Database=payments;Username=postgres;Password=postgres";
 

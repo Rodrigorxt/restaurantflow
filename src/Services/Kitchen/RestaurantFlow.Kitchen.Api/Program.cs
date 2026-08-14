@@ -2,8 +2,10 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using RestaurantFlow.Contracts;
 using RestaurantFlow.Kitchen.Api;
+using RestaurantFlow.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddRestaurantFlowObservability("restaurantflow-kitchen");
 var connectionString = builder.Configuration.GetConnectionString("Database")
     ?? "Host=localhost;Port=5434;Database=kitchen;Username=postgres;Password=postgres";
 

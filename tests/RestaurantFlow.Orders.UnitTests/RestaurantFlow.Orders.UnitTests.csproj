@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\BuildingBlocks\RestaurantFlow.Contracts\RestaurantFlow.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Services\Orders\RestaurantFlow.Orders.Api\RestaurantFlow.Orders.Api.csproj" />
   </ItemGroup>
 
 </Project>

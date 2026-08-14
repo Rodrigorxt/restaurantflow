@@ -1,0 +1,41 @@
+@host = http://localhost:8080
+
+### Create an approved order
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+  "customerId": "2d42a448-d6ea-4577-9b76-98f38682b820",
+  "customerEmail": "customer@example.com",
+  "paymentReference": "demo-approved",
+  "items": [
+    {
+      "menuItemId": "991402ff-ac21-4e83-92ef-e21a6c64a911",
+      "name": "Truffle Burger",
+      "quantity": 2,
+      "unitPrice": 29.90
+    }
+  ]
+}
+
+### Simulate a declined payment
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+  "customerId": "2d42a448-d6ea-4577-9b76-98f38682b820",
+  "customerEmail": "customer@example.com",
+  "paymentReference": "decline-demo",
+  "items": [
+    {
+      "menuItemId": "991402ff-ac21-4e83-92ef-e21a6c64a911",
+      "name": "Truffle Burger",
+      "quantity": 1,
+      "unitPrice": 29.90
+    }
+  ]
+}
+
+### List kitchen tickets
+GET {{host}}/api/kitchen/tickets
+
