@@ -11,6 +11,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<PaymentsDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddMassTransit(configurator =>
 {
+    configurator.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("payments", false));
     configurator.AddConsumer<OrderSubmittedConsumer>();
     configurator.UsingRabbitMq((context, rabbit) =>
     {
@@ -25,6 +26,10 @@ builder.Services.AddMassTransit(configurator =>
 });
 
 var app = builder.Build();
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    await scope.ServiceProvider.GetRequiredService<PaymentsDbContext>().Database.MigrateAsync();
+}
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.MapHealthChecks("/health");
 app.MapGet("/api/payments/{orderId:guid}", async (Guid orderId, PaymentsDbContext dbContext, CancellationToken cancellationToken) =>
@@ -35,4 +40,3 @@ app.MapGet("/api/payments/{orderId:guid}", async (Guid orderId, PaymentsDbContex
 app.Run();
 
 public partial class Program;
-

@@ -12,6 +12,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<KitchenDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddMassTransit(configurator =>
 {
+    configurator.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("kitchen", false));
     configurator.AddConsumer<PaymentAuthorizedConsumer>();
     configurator.UsingRabbitMq((context, rabbit) =>
     {
@@ -26,6 +27,10 @@ builder.Services.AddMassTransit(configurator =>
 });
 
 var app = builder.Build();
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    await scope.ServiceProvider.GetRequiredService<KitchenDbContext>().Database.MigrateAsync();
+}
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.MapHealthChecks("/health");
 app.MapGet("/api/kitchen/tickets", async (KitchenDbContext dbContext, CancellationToken cancellationToken) =>
@@ -51,4 +56,3 @@ app.MapPost("/api/kitchen/tickets/{id:guid}/complete", async (Guid id, KitchenDb
 app.Run();
 
 public partial class Program;
-

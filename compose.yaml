@@ -1,0 +1,132 @@
+name: restaurantflow
+
+x-api-environment: &api-environment
+  ASPNETCORE_ENVIRONMENT: Development
+  ASPNETCORE_HTTP_PORTS: 8080
+  RabbitMq__Host: rabbitmq
+  RabbitMq__Username: restaurantflow
+  RabbitMq__Password: restaurantflow
+
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: src/Gateway/RestaurantFlow.Gateway/Dockerfile
+    environment:
+      <<: *api-environment
+    ports:
+      - "8080:8080"
+    depends_on:
+      - menu-api
+      - orders-api
+      - kitchen-api
+      - payments-api
+
+  menu-api:
+    build:
+      context: .
+      dockerfile: src/Services/Menu/RestaurantFlow.Menu.Api/Dockerfile
+    environment:
+      <<: *api-environment
+      ConnectionStrings__Database: Host=menu-db;Database=menu;Username=postgres;Password=postgres
+    depends_on:
+      menu-db:
+        condition: service_healthy
+
+  orders-api:
+    build:
+      context: .
+      dockerfile: src/Services/Orders/RestaurantFlow.Orders.Api/Dockerfile
+    environment:
+      <<: *api-environment
+      ConnectionStrings__Database: Host=orders-db;Database=orders;Username=postgres;Password=postgres
+    depends_on:
+      orders-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  kitchen-api:
+    build:
+      context: .
+      dockerfile: src/Services/Kitchen/RestaurantFlow.Kitchen.Api/Dockerfile
+    environment:
+      <<: *api-environment
+      ConnectionStrings__Database: Host=kitchen-db;Database=kitchen;Username=postgres;Password=postgres
+    depends_on:
+      kitchen-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  payments-api:
+    build:
+      context: .
+      dockerfile: src/Services/Payments/RestaurantFlow.Payments.Api/Dockerfile
+    environment:
+      <<: *api-environment
+      ConnectionStrings__Database: Host=payments-db;Database=payments;Username=postgres;Password=postgres
+    depends_on:
+      payments-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  notifications-worker:
+    build:
+      context: .
+      dockerfile: src/Services/Notifications/RestaurantFlow.Notifications.Worker/Dockerfile
+    environment:
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Username: restaurantflow
+      RabbitMq__Password: restaurantflow
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq:4.2-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: restaurantflow
+      RABBITMQ_DEFAULT_PASS: restaurantflow
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  menu-db:
+    image: postgres:18-alpine
+    environment: { POSTGRES_DB: menu, POSTGRES_PASSWORD: postgres }
+    volumes: [menu-data:/var/lib/postgresql]
+    healthcheck: &postgres-health
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  orders-db:
+    image: postgres:18-alpine
+    environment: { POSTGRES_DB: orders, POSTGRES_PASSWORD: postgres }
+    volumes: [orders-data:/var/lib/postgresql]
+    healthcheck: *postgres-health
+
+  kitchen-db:
+    image: postgres:18-alpine
+    environment: { POSTGRES_DB: kitchen, POSTGRES_PASSWORD: postgres }
+    volumes: [kitchen-data:/var/lib/postgresql]
+    healthcheck: *postgres-health
+
+  payments-db:
+    image: postgres:18-alpine
+    environment: { POSTGRES_DB: payments, POSTGRES_PASSWORD: postgres }
+    volumes: [payments-data:/var/lib/postgresql]
+    healthcheck: *postgres-health
+
+volumes:
+  menu-data:
+  orders-data:
+  kitchen-data:
+  payments-data:

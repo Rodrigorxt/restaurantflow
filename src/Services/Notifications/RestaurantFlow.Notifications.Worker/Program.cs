@@ -4,6 +4,7 @@ using RestaurantFlow.Notifications.Worker;
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddMassTransit(configurator =>
 {
+    configurator.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("notifications", false));
     configurator.AddConsumers(typeof(Program).Assembly);
     configurator.UsingRabbitMq((context, rabbit) =>
     {
@@ -20,4 +21,3 @@ builder.Services.AddMassTransit(configurator =>
 await builder.Build().RunAsync();
 
 public partial class Program;
-

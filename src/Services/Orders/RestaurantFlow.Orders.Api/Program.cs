@@ -15,6 +15,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<OrdersDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddMassTransit(configurator =>
 {
+    configurator.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("orders", false));
     configurator.AddConsumers(typeof(Program).Assembly);
     configurator.AddEntityFrameworkOutbox<OrdersDbContext>(outbox =>
     {
@@ -34,6 +35,10 @@ builder.Services.AddMassTransit(configurator =>
 });
 
 var app = builder.Build();
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    await scope.ServiceProvider.GetRequiredService<OrdersDbContext>().Database.MigrateAsync();
+}
 app.UseExceptionHandler();
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.MapHealthChecks("/health");

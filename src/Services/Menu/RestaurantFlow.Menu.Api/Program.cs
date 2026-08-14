@@ -10,6 +10,10 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<MenuDbContext>(options => options.UseNpgsql(connectionString));
 
 var app = builder.Build();
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    await scope.ServiceProvider.GetRequiredService<MenuDbContext>().Database.MigrateAsync();
+}
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.MapHealthChecks("/health");
 app.MapGet("/api/menu/items", async (string? category, MenuDbContext dbContext, CancellationToken cancellationToken) =>
@@ -45,4 +49,3 @@ app.Run();
 public sealed record CreateMenuItemRequest(string Name, string Description, string Category, decimal Price);
 public sealed record SetAvailabilityRequest(bool IsAvailable);
 public partial class Program;
-
