@@ -44,7 +44,8 @@ See [System architecture](docs/architecture.md) and the [architecture decision r
 - Entity Framework Core and PostgreSQL
 - RabbitMQ and MassTransit
 - YARP API Gateway and Keycloak OIDC authentication
-- OpenTelemetry traces and metrics with OTLP export
+- OpenTelemetry traces, metrics, and logs with OTLP export
+- Prometheus, Grafana, Tempo, and Loki
 - Docker Compose
 - Kubernetes and Helm
 - xUnit unit, architecture, and Testcontainers integration tests
@@ -81,8 +82,12 @@ Available endpoints:
 | RabbitMQ Management | `http://localhost:15672` |
 | RabbitMQ local credentials | `restaurantflow` / `restaurantflow` |
 | Local OIDC token endpoint | `http://localhost:8081/realms/restaurantflow/protocol/openid-connect/token` |
+| Grafana | `http://localhost:3000` (`admin` / `admin`) |
+| Prometheus | `http://localhost:9090` |
+| Tempo | `http://localhost:3200` |
+| Loki | `http://localhost:3100` |
 
-Run the requests in [docs/demo.http](docs/demo.http) in order to obtain role-specific tokens, create a menu item, submit approved and declined orders, inspect order state, and list kitchen tickets. See [Security model](docs/security.md).
+Run the requests in [docs/demo.http](docs/demo.http) in order to obtain role-specific tokens, create a menu item, submit approved and declined orders, inspect order state, and list kitchen tickets. See [Security model](docs/security.md) and [Observability](docs/observability.md).
 
 Stop the environment without deleting database volumes:
 
@@ -133,7 +138,7 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It deploys
 | OIDC authentication and policy authorization | Implemented |
 | OAuth client credentials for Orders to Menu | Implemented |
 | Full consumer idempotency coverage | Implemented for core workflow |
-| Local observability dashboard stack | Planned |
+| Local observability dashboard stack | Implemented |
 | RabbitMQ and full workflow integration tests | Planned |
 | Production secret provider and managed cloud databases | Planned |
 
@@ -141,5 +146,4 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It deploys
 
 1. Extend Testcontainers coverage to RabbitMQ and the complete order workflow.
 2. Add timeout and failure-injection tests for saga recovery paths.
-3. Add an OpenTelemetry Collector, Prometheus, Grafana, Tempo, and structured log aggregation.
-4. Add production overlays for managed Kubernetes, databases, messaging, and secret storage.
+3. Add production overlays for managed Kubernetes, databases, messaging, and secret storage.

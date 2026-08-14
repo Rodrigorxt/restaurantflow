@@ -97,4 +97,4 @@ The in-cluster PostgreSQL and RabbitMQ resources are demonstration infrastructur
 
 ## Observability
 
-The shared observability building block instruments ASP.NET Core, outbound HTTP, runtime metrics, and distributed operations with OpenTelemetry and OTLP export. A complete local collector and dashboard stack remains a planned milestone.
+The shared observability building block instruments ASP.NET Core, outbound HTTP, runtime metrics, MassTransit operations, and structured logs with OpenTelemetry. Services export OTLP to a central Collector, which routes metrics to Prometheus, traces to Tempo, and logs to Loki. Grafana provisions all three data sources and a service dashboard with trace-to-log correlation. See [Observability](observability.md).
