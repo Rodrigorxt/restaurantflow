@@ -9,6 +9,7 @@ RestaurantFlow uses different test levels to validate business behavior, archite
 | `RestaurantFlow.Orders.UnitTests` | Order totals, status transitions, invalid operations, and Menu client behavior | None |
 | `RestaurantFlow.ArchitectureTests` | Service isolation and integration-contract dependency rules | None |
 | `RestaurantFlow.Menu.IntegrationTests` | Menu HTTP endpoints, Entity Framework migrations, PostgreSQL persistence, availability, and price resolution | Ephemeral PostgreSQL container |
+| `RestaurantFlow.Security.UnitTests` | Named authorization policies and role separation | None |
 
 ## Integration-test lifecycle
 

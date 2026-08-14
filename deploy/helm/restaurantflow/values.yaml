@@ -15,6 +15,15 @@ postgres:
   password: postgres
   storage: 1Gi
 
+authentication:
+  enabled: true
+  authority: https://identity.example.com/realms/restaurantflow
+  audience: restaurantflow-api
+  requireHttpsMetadata: true
+  tokenEndpoint: https://identity.example.com/realms/restaurantflow/protocol/openid-connect/token
+  ordersClientId: orders-service
+  ordersClientSecret: replace-in-secret-store
+
 services:
   gateway:
     image: gateway
@@ -63,4 +72,3 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
-

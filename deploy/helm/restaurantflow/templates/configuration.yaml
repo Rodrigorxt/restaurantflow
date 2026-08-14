@@ -8,6 +8,7 @@ stringData:
   rabbitmq-username: {{ .Values.rabbitmq.username | quote }}
   rabbitmq-password: {{ .Values.rabbitmq.password | quote }}
   postgres-password: {{ .Values.postgres.password | quote }}
+  orders-client-secret: {{ .Values.authentication.ordersClientSecret | quote }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -19,3 +20,9 @@ data:
   ASPNETCORE_HTTP_PORTS: "8080"
   RabbitMq__Host: rabbitmq
   Services__Menu: http://menu-api:8080
+  Authentication__Enabled: {{ .Values.authentication.enabled | quote }}
+  Authentication__Authority: {{ .Values.authentication.authority | quote }}
+  Authentication__Audience: {{ .Values.authentication.audience | quote }}
+  Authentication__RequireHttpsMetadata: {{ .Values.authentication.requireHttpsMetadata | quote }}
+  Authentication__TokenEndpoint: {{ .Values.authentication.tokenEndpoint | quote }}
+  Authentication__ClientId: {{ .Values.authentication.ordersClientId | quote }}

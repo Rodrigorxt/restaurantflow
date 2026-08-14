@@ -45,6 +45,10 @@ spec:
               valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: rabbitmq-username } }
             - name: RabbitMq__Password
               valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: rabbitmq-password } }
+            {{- if eq $name "orders-api" }}
+            - name: Authentication__ClientSecret
+              valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: orders-client-secret } }
+            {{- end }}
             {{- if $service.database }}
             - name: POSTGRES_PASSWORD
               valueFrom: { secretKeyRef: { name: restaurantflow-secrets, key: postgres-password } }

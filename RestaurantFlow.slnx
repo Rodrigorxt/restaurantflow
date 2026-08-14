@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/" />
   <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/RestaurantFlow.Security/RestaurantFlow.Security.csproj" />
     <Project Path="src/BuildingBlocks/RestaurantFlow.Contracts/RestaurantFlow.Contracts.csproj" />
     <Project Path="src/BuildingBlocks/RestaurantFlow.Observability/RestaurantFlow.Observability.csproj" />
   </Folder>
@@ -27,5 +28,6 @@
     <Project Path="tests/RestaurantFlow.ArchitectureTests/RestaurantFlow.ArchitectureTests.csproj" />
     <Project Path="tests/RestaurantFlow.Menu.IntegrationTests/RestaurantFlow.Menu.IntegrationTests.csproj" />
     <Project Path="tests/RestaurantFlow.Orders.UnitTests/RestaurantFlow.Orders.UnitTests.csproj" />
+    <Project Path="tests/RestaurantFlow.Security.UnitTests/RestaurantFlow.Security.UnitTests.csproj" />
   </Folder>
 </Solution>

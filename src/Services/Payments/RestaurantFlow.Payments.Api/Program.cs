@@ -2,6 +2,7 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using RestaurantFlow.Payments.Api;
 using RestaurantFlow.Observability;
+using RestaurantFlow.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRestaurantFlowObservability("restaurantflow-payments");
@@ -10,6 +11,7 @@ var connectionString = builder.Configuration.GetConnectionString("Database")
 
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
+builder.Services.AddRestaurantFlowSecurity(builder.Configuration);
 builder.Services.AddDbContext<PaymentsDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddMassTransit(configurator =>
 {
@@ -35,12 +37,13 @@ if (builder.Configuration.GetValue<bool>("Database:Migrate"))
     if (builder.Configuration.GetValue<bool>("Database:MigrationsOnly")) return;
 }
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
+app.UseRestaurantFlowSecurity(builder.Configuration);
 app.MapHealthChecks("/health");
 app.MapGet("/api/payments/{orderId:guid}", async (Guid orderId, PaymentsDbContext dbContext, CancellationToken cancellationToken) =>
 {
     var payment = await dbContext.Payments.AsNoTracking().SingleOrDefaultAsync(x => x.OrderId == orderId, cancellationToken);
     return payment is null ? Results.NotFound() : Results.Ok(payment);
-});
+}).RequireAuthorization(Policies.Admin);
 app.Run();
 
 public partial class Program;

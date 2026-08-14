@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RestaurantFlow.Menu.Api;
 using RestaurantFlow.Observability;
+using RestaurantFlow.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRestaurantFlowObservability("restaurantflow-menu");
@@ -9,6 +10,7 @@ var connectionString = builder.Configuration.GetConnectionString("Database")
 
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
+builder.Services.AddRestaurantFlowSecurity(builder.Configuration);
 builder.Services.AddDbContext<MenuDbContext>(options => options.UseNpgsql(connectionString));
 
 var app = builder.Build();
@@ -19,6 +21,7 @@ if (builder.Configuration.GetValue<bool>("Database:Migrate"))
     if (builder.Configuration.GetValue<bool>("Database:MigrationsOnly")) return;
 }
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
+app.UseRestaurantFlowSecurity(builder.Configuration);
 app.MapHealthChecks("/health");
 app.MapGet("/api/menu/items", async (string? category, MenuDbContext dbContext, CancellationToken cancellationToken) =>
 {
@@ -39,7 +42,7 @@ app.MapPost("/internal/menu/items/resolve", async (ResolveMenuItemsRequest reque
         .ToListAsync(cancellationToken);
 
     return Results.Ok(items);
-});
+}).RequireAuthorization(Policies.Internal);
 app.MapPost("/api/menu/items", async (CreateMenuItemRequest request, MenuDbContext dbContext, CancellationToken cancellationToken) =>
 {
     try
@@ -53,7 +56,7 @@ app.MapPost("/api/menu/items", async (CreateMenuItemRequest request, MenuDbConte
     {
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["menuItem"] = [exception.Message] });
     }
-});
+}).RequireAuthorization(Policies.Admin);
 app.MapPatch("/api/menu/items/{id:guid}/availability", async (Guid id, SetAvailabilityRequest request, MenuDbContext dbContext, CancellationToken cancellationToken) =>
 {
     var item = await dbContext.MenuItems.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
@@ -61,7 +64,7 @@ app.MapPatch("/api/menu/items/{id:guid}/availability", async (Guid id, SetAvaila
     item.SetAvailability(request.IsAvailable);
     await dbContext.SaveChangesAsync(cancellationToken);
     return Results.Ok(item);
-});
+}).RequireAuthorization(Policies.Admin);
 app.Run();
 
 public sealed record CreateMenuItemRequest(string Name, string Description, string Category, decimal Price);

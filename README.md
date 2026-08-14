@@ -43,7 +43,7 @@ See [System architecture](docs/architecture.md) and the [architecture decision r
 - .NET 10, ASP.NET Core Minimal APIs, and Worker Services
 - Entity Framework Core and PostgreSQL
 - RabbitMQ and MassTransit
-- YARP API Gateway
+- YARP API Gateway and Keycloak OIDC authentication
 - OpenTelemetry traces and metrics with OTLP export
 - Docker Compose
 - Kubernetes and Helm
@@ -79,8 +79,9 @@ Available endpoints:
 | API Gateway | `http://localhost:8080` |
 | RabbitMQ Management | `http://localhost:15672` |
 | RabbitMQ local credentials | `restaurantflow` / `restaurantflow` |
+| Local OIDC token endpoint | `http://localhost:8081/realms/restaurantflow/protocol/openid-connect/token` |
 
-Run the requests in [docs/demo.http](docs/demo.http) in order to create a menu item, submit approved and declined orders, inspect order state, and list kitchen tickets.
+Run the requests in [docs/demo.http](docs/demo.http) in order to obtain role-specific tokens, create a menu item, submit approved and declined orders, inspect order state, and list kitchen tickets. See [Security model](docs/security.md).
 
 Stop the environment without deleting database volumes:
 
@@ -126,7 +127,8 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It deploys
 | Docker Compose and Helm deployment | Implemented |
 | Automated unit and architecture tests | Implemented |
 | PostgreSQL Testcontainers integration tests | Implemented for Menu pricing |
-| Authentication and policy authorization | Planned |
+| OIDC authentication and policy authorization | Implemented |
+| OAuth client credentials for Orders to Menu | Implemented |
 | Full consumer inbox and idempotency coverage | Planned |
 | Saga orchestration and compensation | Planned |
 | Local observability dashboard stack | Planned |
@@ -135,9 +137,8 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It deploys
 
 ## Next milestones
 
-1. Add JWT/OIDC authentication and policy-based authorization.
-2. Extend Testcontainers coverage to RabbitMQ and the complete order workflow.
-3. Extend transactional outbox and inbox guarantees to every event-producing service.
-4. Model the distributed order workflow as a persisted saga with compensation.
-5. Add an OpenTelemetry Collector, Prometheus, Grafana, Tempo, and structured log aggregation.
-6. Add production overlays for managed Kubernetes, databases, messaging, and secret storage.
+1. Extend Testcontainers coverage to RabbitMQ and the complete order workflow.
+2. Extend transactional outbox and inbox guarantees to every event-producing service.
+3. Model the distributed order workflow as a persisted saga with compensation.
+4. Add an OpenTelemetry Collector, Prometheus, Grafana, Tempo, and structured log aggregation.
+5. Add production overlays for managed Kubernetes, databases, messaging, and secret storage.

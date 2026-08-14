@@ -5,11 +5,15 @@ RestaurantFlow uses independently deployable services aligned with restaurant bu
 ```mermaid
 flowchart LR
     Client --> Gateway[API Gateway]
+    Identity[OIDC Provider] --> Gateway
+    Identity --> Orders
+    Identity --> Menu
     Gateway --> Menu
     Gateway --> Orders
     Gateway --> Kitchen
     Gateway --> Payments
     Orders -- "POST /internal/menu/items/resolve" --> Menu
+    Orders -- "OAuth client credentials" --> Identity
     Orders --> Broker[RabbitMQ]
     Broker --> Orders
     Broker --> Payments
@@ -33,6 +37,10 @@ flowchart LR
 - **Gateway** exposes public routes. Internal Menu resolution is not routed publicly.
 
 No service reads another service's database.
+
+## Identity and access
+
+An OIDC provider issues audience-restricted JWT access tokens. Gateway routes and API endpoints enforce the same named role policies. Orders derives customer ownership from `sub` and `email` claims and uses its own client-credentials identity for the private Menu lookup. See [Security model](security.md).
 
 ## Order submission
 
@@ -89,4 +97,3 @@ The in-cluster PostgreSQL and RabbitMQ resources are demonstration infrastructur
 ## Observability
 
 The shared observability building block instruments ASP.NET Core, outbound HTTP, runtime metrics, and distributed operations with OpenTelemetry and OTLP export. A complete local collector and dashboard stack remains a planned milestone.
-

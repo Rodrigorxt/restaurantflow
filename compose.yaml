@@ -3,6 +3,10 @@ name: restaurantflow
 x-api-environment: &api-environment
   ASPNETCORE_ENVIRONMENT: Development
   ASPNETCORE_HTTP_PORTS: 8080
+  Authentication__Enabled: "true"
+  Authentication__Authority: http://keycloak:8080/realms/restaurantflow
+  Authentication__Audience: restaurantflow-api
+  Authentication__RequireHttpsMetadata: "false"
   RabbitMq__Host: rabbitmq
   RabbitMq__Username: restaurantflow
   RabbitMq__Password: restaurantflow
@@ -17,6 +21,7 @@ services:
     ports:
       - "8080:8080"
     depends_on:
+      - keycloak
       - menu-api
       - orders-api
       - kitchen-api
@@ -34,6 +39,8 @@ services:
         condition: service_healthy
       menu-migrations:
         condition: service_completed_successfully
+      keycloak:
+        condition: service_started
 
   menu-migrations:
     build:
@@ -56,6 +63,9 @@ services:
       <<: *api-environment
       ConnectionStrings__Database: Host=orders-db;Database=orders;Username=postgres;Password=postgres
       Services__Menu: http://menu-api:8080
+      Authentication__TokenEndpoint: http://keycloak:8080/realms/restaurantflow/protocol/openid-connect/token
+      Authentication__ClientId: orders-service
+      Authentication__ClientSecret: local-orders-secret
     depends_on:
       orders-db:
         condition: service_healthy
@@ -65,6 +75,8 @@ services:
         condition: service_started
       orders-migrations:
         condition: service_completed_successfully
+      keycloak:
+        condition: service_started
 
   orders-migrations:
     build:
@@ -93,6 +105,8 @@ services:
         condition: service_healthy
       kitchen-migrations:
         condition: service_completed_successfully
+      keycloak:
+        condition: service_started
 
   kitchen-migrations:
     build:
@@ -121,6 +135,8 @@ services:
         condition: service_healthy
       payments-migrations:
         condition: service_completed_successfully
+      keycloak:
+        condition: service_started
 
   payments-migrations:
     build:
@@ -146,6 +162,20 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.0
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: http://keycloak:8080
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./deploy/keycloak/restaurantflow-realm.json:/opt/keycloak/data/import/restaurantflow-realm.json:ro
+    ports:
+      - "8081:8080"
 
   rabbitmq:
     image: rabbitmq:4.2-management-alpine

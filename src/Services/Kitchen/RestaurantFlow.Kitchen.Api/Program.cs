@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using RestaurantFlow.Contracts;
 using RestaurantFlow.Kitchen.Api;
 using RestaurantFlow.Observability;
+using RestaurantFlow.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRestaurantFlowObservability("restaurantflow-kitchen");
@@ -11,6 +12,7 @@ var connectionString = builder.Configuration.GetConnectionString("Database")
 
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
+builder.Services.AddRestaurantFlowSecurity(builder.Configuration);
 builder.Services.AddDbContext<KitchenDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddMassTransit(configurator =>
 {
@@ -36,9 +38,11 @@ if (builder.Configuration.GetValue<bool>("Database:Migrate"))
     if (builder.Configuration.GetValue<bool>("Database:MigrationsOnly")) return;
 }
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
+app.UseRestaurantFlowSecurity(builder.Configuration);
 app.MapHealthChecks("/health");
 app.MapGet("/api/kitchen/tickets", async (KitchenDbContext dbContext, CancellationToken cancellationToken) =>
-    Results.Ok(await dbContext.Tickets.AsNoTracking().OrderBy(ticket => ticket.CreatedAt).ToListAsync(cancellationToken)));
+    Results.Ok(await dbContext.Tickets.AsNoTracking().OrderBy(ticket => ticket.CreatedAt).ToListAsync(cancellationToken)))
+    .RequireAuthorization(Policies.Kitchen);
 app.MapPost("/api/kitchen/tickets/{id:guid}/start", async (Guid id, KitchenDbContext dbContext, IPublishEndpoint publisher, CancellationToken cancellationToken) =>
 {
     var ticket = await dbContext.Tickets.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -47,7 +51,7 @@ app.MapPost("/api/kitchen/tickets/{id:guid}/start", async (Guid id, KitchenDbCon
     await dbContext.SaveChangesAsync(cancellationToken);
     await publisher.Publish(new KitchenPreparationStarted(Guid.NewGuid(), ticket.OrderId, ticket.Id, DateTimeOffset.UtcNow), cancellationToken);
     return Results.Ok(ticket);
-});
+}).RequireAuthorization(Policies.Kitchen);
 app.MapPost("/api/kitchen/tickets/{id:guid}/complete", async (Guid id, KitchenDbContext dbContext, IPublishEndpoint publisher, CancellationToken cancellationToken) =>
 {
     var ticket = await dbContext.Tickets.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -56,7 +60,7 @@ app.MapPost("/api/kitchen/tickets/{id:guid}/complete", async (Guid id, KitchenDb
     await dbContext.SaveChangesAsync(cancellationToken);
     await publisher.Publish(new OrderReady(Guid.NewGuid(), ticket.OrderId, ticket.Id, DateTimeOffset.UtcNow), cancellationToken);
     return Results.Ok(ticket);
-});
+}).RequireAuthorization(Policies.Kitchen);
 app.Run();
 
 public partial class Program;
