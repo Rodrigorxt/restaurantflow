@@ -1,36 +1,63 @@
 @host = http://localhost:8080
+@customerId = 2d42a448-d6ea-4577-9b76-98f38682b820
+
+### Check the gateway
+GET {{host}}/health
+
+### Create a menu item
+# @name createMenuItem
+POST {{host}}/api/menu/items
+Content-Type: application/json
+
+{
+  "name": "Truffle Burger",
+  "description": "Beef, truffle sauce and aged cheese",
+  "category": "Main",
+  "price": 29.90
+}
+
+### List available menu items
+GET {{host}}/api/menu/items
 
 ### Create an approved order
+# @name createApprovedOrder
 POST {{host}}/api/orders
 Content-Type: application/json
 
 {
-  "customerId": "2d42a448-d6ea-4577-9b76-98f38682b820",
+  "customerId": "{{customerId}}",
   "customerEmail": "customer@example.com",
   "paymentReference": "demo-approved",
   "items": [
     {
-      "menuItemId": "991402ff-ac21-4e83-92ef-e21a6c64a911",
+      "menuItemId": "{{createMenuItem.response.body.$.id}}",
       "quantity": 2
     }
   ]
 }
 
+### Read the approved order after asynchronous processing
+GET {{host}}/api/orders/{{createApprovedOrder.response.body.$.id}}
+
 ### Simulate a declined payment
+# @name createDeclinedOrder
 POST {{host}}/api/orders
 Content-Type: application/json
 
 {
-  "customerId": "2d42a448-d6ea-4577-9b76-98f38682b820",
+  "customerId": "{{customerId}}",
   "customerEmail": "customer@example.com",
   "paymentReference": "decline-demo",
   "items": [
     {
-      "menuItemId": "991402ff-ac21-4e83-92ef-e21a6c64a911",
+      "menuItemId": "{{createMenuItem.response.body.$.id}}",
       "quantity": 1
     }
   ]
 }
+
+### Read the declined order after asynchronous processing
+GET {{host}}/api/orders/{{createDeclinedOrder.response.body.$.id}}
 
 ### List kitchen tickets
 GET {{host}}/api/kitchen/tickets

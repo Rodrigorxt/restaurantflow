@@ -1,14 +1,59 @@
 # Kubernetes deployment
 
-The Helm chart deploys every application, RabbitMQ, and isolated PostgreSQL instances into a dedicated namespace. It includes rolling updates, health probes, resource boundaries, restrictive container security contexts, network policies, persistent storage, and horizontal autoscaling for traffic-sensitive workloads.
+The Helm chart deploys RestaurantFlow into a dedicated namespace. It includes application Deployments and Services, RabbitMQ, isolated PostgreSQL StatefulSets, versioned database migration Jobs, persistent storage, health probes, resource boundaries, restrictive container security contexts, network policies, and horizontal autoscaling.
 
-## Local cluster
+## Prerequisites
+
+- Kubernetes cluster
+- Helm 3
+- RestaurantFlow images available to the cluster
+
+## Install or upgrade
 
 ```bash
 helm upgrade --install restaurantflow ./deploy/helm/restaurantflow \
   --namespace restaurantflow \
-  --create-namespace
+  --create-namespace \
+  --set image.repositoryPrefix=restaurantflow \
+  --set image.tag=latest
 ```
 
-For a local cluster, load the images built by Docker Compose into the cluster before installing the chart. In production, override `image.repositoryPrefix`, `image.tag`, storage classes, and all secret values through a secure deployment pipeline.
+Each stateful service receives a migration Job named with the Helm release revision. The Job applies pending Entity Framework Core migrations and exits. API Deployments do not run migrations during startup.
+
+## Validate manifests
+
+```bash
+helm lint deploy/helm/restaurantflow
+helm template restaurantflow deploy/helm/restaurantflow \
+  --namespace restaurantflow
+```
+
+## Verify the deployment
+
+```bash
+kubectl get deployments,statefulsets,jobs,pods,services \
+  --namespace restaurantflow
+```
+
+The gateway uses a `LoadBalancer` Service by default. Local clusters may require port forwarding:
+
+```bash
+kubectl port-forward service/gateway 8080:8080 \
+  --namespace restaurantflow
+```
+
+## Production overrides
+
+The included RabbitMQ and PostgreSQL resources are intended for portfolio and development environments. A production deployment should override or replace:
+
+- image repository prefix and immutable image tag
+- PostgreSQL and RabbitMQ credentials
+- storage classes and volume sizes
+- in-cluster databases and broker with managed or highly available services
+- plain Kubernetes Secrets with an external secret provider
+- ingress, TLS, DNS, and certificate management
+- backup, restore, retention, and disaster-recovery policies
+- resource profiles and autoscaling thresholds based on load tests
+
+Do not commit production credentials to `values.yaml`.
 
