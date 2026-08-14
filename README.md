@@ -56,6 +56,8 @@ docker compose down
 ## Reliability and scalability
 
 - The Orders service publishes through the Entity Framework transactional outbox.
+- Order names and prices are resolved from the Menu service and never trusted from client input.
+- Synchronous service calls use timeout, retry, and circuit-breaker resilience policies.
 - Consumers use service-prefixed queues, retry policies, and idempotent business keys.
 - Each stateful service owns an isolated PostgreSQL database.
 - OpenTelemetry exports distributed traces and runtime metrics over OTLP.
@@ -63,4 +65,4 @@ docker compose down
 
 ## Project status
 
-The first end-to-end order workflow is operational. Authentication, menu price validation, dedicated migration jobs, richer notification channels, and production secret management are tracked as the next delivery milestones.
+The first end-to-end order workflow is operational. Authentication, dedicated migration jobs, richer notification channels, and production secret management are tracked as the next delivery milestones.

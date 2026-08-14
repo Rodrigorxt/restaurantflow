@@ -40,11 +40,14 @@ services:
     environment:
       <<: *api-environment
       ConnectionStrings__Database: Host=orders-db;Database=orders;Username=postgres;Password=postgres
+      Services__Menu: http://menu-api:8080
     depends_on:
       orders-db:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      menu-api:
+        condition: service_started
 
   kitchen-api:
     build:
