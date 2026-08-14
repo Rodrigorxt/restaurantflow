@@ -47,7 +47,7 @@ See [System architecture](docs/architecture.md) and the [architecture decision r
 - OpenTelemetry traces and metrics with OTLP export
 - Docker Compose
 - Kubernetes and Helm
-- xUnit architecture and unit tests
+- xUnit unit, architecture, and Testcontainers integration tests
 - GitHub Actions continuous integration
 
 ## Order workflow
@@ -97,7 +97,7 @@ helm lint deploy/helm/restaurantflow
 helm template restaurantflow deploy/helm/restaurantflow --namespace restaurantflow
 ```
 
-The GitHub Actions pipeline restores, builds, tests, validates Docker Compose, lints the Helm chart, and renders the Kubernetes manifests for every pull request.
+The GitHub Actions pipeline restores, builds, runs unit, architecture, and container-backed integration tests, validates Docker Compose, lints the Helm chart, and renders the Kubernetes manifests for every pull request. See [Testing strategy](docs/testing.md).
 
 ## Reliability and scalability
 
@@ -125,17 +125,18 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It deploys
 | Dedicated migration workloads | Implemented |
 | Docker Compose and Helm deployment | Implemented |
 | Automated unit and architecture tests | Implemented |
+| PostgreSQL Testcontainers integration tests | Implemented for Menu pricing |
 | Authentication and policy authorization | Planned |
 | Full consumer inbox and idempotency coverage | Planned |
 | Saga orchestration and compensation | Planned |
 | Local observability dashboard stack | Planned |
-| Testcontainers integration test suite | Planned |
+| RabbitMQ and full workflow integration tests | Planned |
 | Production secret provider and managed cloud databases | Planned |
 
 ## Next milestones
 
 1. Add JWT/OIDC authentication and policy-based authorization.
-2. Add PostgreSQL and RabbitMQ integration tests with Testcontainers.
+2. Extend Testcontainers coverage to RabbitMQ and the complete order workflow.
 3. Extend transactional outbox and inbox guarantees to every event-producing service.
 4. Model the distributed order workflow as a persisted saga with compensation.
 5. Add an OpenTelemetry Collector, Prometheus, Grafana, Tempo, and structured log aggregation.
