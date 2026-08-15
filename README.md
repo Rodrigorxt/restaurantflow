@@ -173,3 +173,7 @@ The version-pinned [AWS Terraform reference](infra/aws/README.md) provisions a t
 ## Next milestones
 
 The portfolio baseline is complete. Future product extensions can replace the simulated payment and notification adapters, add customer-facing ordering, and introduce environment-specific GitOps promotion after cloud credentials and a target domain are available.
+
+## Contributing and license
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development and pull-request workflow and [SECURITY.md](SECURITY.md) for private vulnerability reporting guidance. RestaurantFlow is available under the [MIT License](LICENSE).
