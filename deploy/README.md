@@ -62,6 +62,8 @@ helm upgrade --install restaurantflow ./deploy/helm/restaurantflow \
 
 The external secret must provide `rabbitmq-username`, `rabbitmq-password`, `orders-client-secret`, and the `menu-connection`, `orders-connection`, `kitchen-connection`, and `payments-connection` keys. The External Secrets operator and referenced `SecretStore` or `ClusterSecretStore` must already exist.
 
+The [AWS Terraform reference](../infra/aws/README.md) provisions managed services and a Secrets Manager document with this exact contract. Its output supplies the private RabbitMQ host and ECR repository prefix used by the command above.
+
 Environment owners must still define and verify:
 
 - image repository prefix and immutable image tag

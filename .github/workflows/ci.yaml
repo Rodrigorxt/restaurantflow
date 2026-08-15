@@ -40,6 +40,20 @@ jobs:
       - name: Render production profile
         run: helm template restaurantflow deploy/helm/restaurantflow --namespace restaurantflow --values deploy/helm/restaurantflow/values-production.yaml > rendered-production.yaml
 
+  validate-terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.8
+      - name: Check formatting
+        run: terraform -chdir=infra/aws fmt -check -recursive
+      - name: Initialize providers and modules
+        run: terraform -chdir=infra/aws init -backend=false -input=false
+      - name: Validate AWS infrastructure
+        run: terraform -chdir=infra/aws validate -no-color
+
   end-to-end-workflow:
     runs-on: ubuntu-latest
     timeout-minutes: 20

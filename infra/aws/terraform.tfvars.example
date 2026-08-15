@@ -1,0 +1,22 @@
+aws_region              = "us-east-1"
+environment             = "production"
+cluster_version         = "1.35"
+database_engine_version = "17"
+
+node_instance_types = ["m7i.large"]
+node_capacity = {
+  minimum = 2
+  desired = 3
+  maximum = 6
+}
+
+database_instance_class = "db.t4g.micro"
+database_multi_az       = true
+rabbitmq_instance_type  = "mq.m5.large"
+rabbitmq_engine_version = "4.2"
+single_nat_gateway      = false
+deletion_protection     = true
+
+# Never commit the value. Supply it through TF_VAR_orders_client_secret.
+# orders_client_secret = "replace-through-a-secure-input"
+

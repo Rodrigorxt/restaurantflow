@@ -52,6 +52,7 @@ See [System architecture](docs/architecture.md) and the [architecture decision r
 - Prometheus, Grafana, Tempo, and Loki
 - Docker Compose
 - Kubernetes and Helm
+- Terraform, Amazon EKS, RDS, Amazon MQ, ECR, KMS, and Secrets Manager
 - xUnit unit, architecture, and Testcontainers integration tests
 - k6 workload scenarios with executable latency and error-rate thresholds
 - GitHub Actions continuous integration
@@ -110,6 +111,8 @@ dotnet test RestaurantFlow.slnx --configuration Release
 docker compose config --quiet
 helm lint deploy/helm/restaurantflow
 helm template restaurantflow deploy/helm/restaurantflow --namespace restaurantflow
+terraform -chdir=infra/aws fmt -check -recursive
+terraform -chdir=infra/aws validate
 ```
 
 The GitHub Actions pipeline restores, builds, runs unit, architecture, and container-backed integration tests, validates Docker Compose, lints the Helm chart, and renders the Kubernetes manifests for every pull request. See [Testing strategy](docs/testing.md).
@@ -138,6 +141,10 @@ The baseline uses a constant arrival rate, exercises real OIDC authentication an
 
 The Helm chart is documented in [deploy/README.md](deploy/README.md). It provides self-contained development infrastructure and a production profile for managed PostgreSQL, managed RabbitMQ, External Secrets, TLS Ingress, migration Jobs, availability controls, network policies, and autoscaling.
 
+## AWS infrastructure
+
+The version-pinned [AWS Terraform reference](infra/aws/README.md) provisions a three-AZ VPC, EKS, four isolated RDS PostgreSQL databases, clustered Amazon MQ for RabbitMQ, immutable ECR repositories, KMS encryption, and a Secrets Manager document that plugs directly into the production Helm profile. It includes protected stateful resources, private endpoints, least-privilege secret access, capacity inputs, and an explicit cost warning.
+
 ## Current status
 
 | Capability | Status |
@@ -161,7 +168,8 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It provide
 | Production secret provider and managed cloud services profile | Implemented |
 | Reproducible API performance baseline | Implemented |
 | Interactive Blazor workflow demonstration | Implemented |
+| Reproducible AWS managed infrastructure | Implemented |
 
 ## Next milestones
 
-The core backend portfolio roadmap is complete. Future extensions can add real payment and notification providers, a customer-facing frontend, load-test baselines, and a cloud-specific Terraform deployment.
+The portfolio baseline is complete. Future product extensions can replace the simulated payment and notification adapters, add customer-facing ordering, and introduce environment-specific GitOps promotion after cloud credentials and a target domain are available.
