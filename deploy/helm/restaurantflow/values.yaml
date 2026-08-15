@@ -47,6 +47,10 @@ authentication:
   ordersClientId: orders-service
   ordersClientSecret: replace-in-secret-store
 
+orderWorkflow:
+  paymentTimeout: "00:02:00"
+  kitchenAcceptanceTimeout: "00:02:00"
+
 services:
   gateway:
     image: gateway

@@ -77,11 +77,13 @@ The Menu HTTP client uses standard resilience policies for transient failures: t
 6. Orders updates its aggregate while the saga records the distributed workflow state.
 7. Notifications consumes customer-relevant events independently.
 
+Payment authorization and kitchen acceptance have explicit deadlines. The saga schedules timeout messages through Quartz.NET, whose jobs and triggers share the Orders PostgreSQL database. Scheduler clustering gives multiple Orders replicas a single durable schedule and allows deadlines to survive application or broker restarts. Successful progress unschedules the current deadline; an expired deadline finalizes the saga and publishes `CancelOrder`. Late or duplicate workflow messages are ignored according to the saga state and guarded aggregate transitions.
+
 Delivery is at least once. Core consumers use the MassTransit Entity Framework Inbox, unique business keys, retries, and idempotent state transitions. Orders, Payments, and Kitchen store outgoing messages in the same PostgreSQL transaction as business changes. The saga uses pessimistic PostgreSQL concurrency and keeps final workflow records for diagnostics.
 
 ## Persistence and migrations
 
-Each stateful service owns an isolated PostgreSQL database and its Entity Framework Core migrations. API processes do not migrate schemas by default.
+Each stateful service owns an isolated PostgreSQL database and its Entity Framework Core migrations. The Orders database also owns the Quartz scheduler schema so application and scheduling persistence advance through one migration workflow. API processes do not migrate schemas by default.
 
 - Docker Compose starts one migration container per database and waits for successful completion before starting the corresponding API.
 - Helm renders one versioned Kubernetes Job per database for each release revision.

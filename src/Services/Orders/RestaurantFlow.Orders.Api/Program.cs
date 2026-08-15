@@ -9,6 +9,7 @@ using RestaurantFlow.Orders.Api.Integrations;
 using RestaurantFlow.Observability;
 using RestaurantFlow.Security;
 using RestaurantFlow.Orders.Api.Workflow;
+using Quartz;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRestaurantFlowObservability("restaurantflow-orders");
@@ -20,6 +21,32 @@ builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
 builder.Services.AddRestaurantFlowSecurity(builder.Configuration);
 builder.Services.AddDbContext<OrdersDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.Configure<OrderWorkflowOptions>(
+    builder.Configuration.GetSection(OrderWorkflowOptions.SectionName));
+builder.Services.AddQuartz(quartz =>
+{
+    quartz.SchedulerName = "RestaurantFlow-Order-Workflow-Scheduler";
+    quartz.SchedulerId = "AUTO";
+    quartz.UseDefaultThreadPool(threadPool => threadPool.MaxConcurrency = 10);
+    quartz.UsePersistentStore(store =>
+    {
+        store.UseProperties = true;
+        store.PerformSchemaValidation = true;
+        store.RetryInterval = TimeSpan.FromSeconds(15);
+        store.UsePostgres(postgres =>
+        {
+            postgres.ConnectionString = connectionString;
+            postgres.TablePrefix = "quartz.qrtz_";
+        });
+        store.UseSystemTextJsonSerializer();
+        store.UseClustering(cluster =>
+        {
+            cluster.CheckinInterval = TimeSpan.FromSeconds(10);
+            cluster.CheckinMisfireThreshold = TimeSpan.FromSeconds(20);
+        });
+    });
+});
+builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 builder.Services.AddHttpClient("identity");
 builder.Services.AddTransient<ClientCredentialsTokenHandler>();
 builder.Services
@@ -32,6 +59,8 @@ builder.Services
     .AddStandardResilienceHandler();
 builder.Services.AddMassTransit(configurator =>
 {
+    configurator.AddPublishMessageScheduler();
+    configurator.AddQuartzConsumers();
     configurator.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("orders", false));
     configurator.AddConsumers(typeof(Program).Assembly);
     configurator.AddSagaStateMachine<OrderWorkflowStateMachine, OrderWorkflowState>()
@@ -53,6 +82,7 @@ builder.Services.AddMassTransit(configurator =>
             host.Username(builder.Configuration["RabbitMq:Username"] ?? "guest");
             host.Password(builder.Configuration["RabbitMq:Password"] ?? "guest");
         });
+        rabbit.UsePublishMessageScheduler();
         rabbit.UseMessageRetry(retry => retry.Exponential(5, TimeSpan.FromMilliseconds(200), TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(500)));
         rabbit.ConfigureEndpoints(context);
     });

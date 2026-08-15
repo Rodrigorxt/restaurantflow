@@ -28,3 +28,5 @@ data:
   Authentication__RequireHttpsMetadata: {{ .Values.authentication.requireHttpsMetadata | quote }}
   Authentication__TokenEndpoint: {{ .Values.authentication.tokenEndpoint | quote }}
   Authentication__ClientId: {{ .Values.authentication.ordersClientId | quote }}
+  OrderWorkflow__PaymentTimeout: {{ .Values.orderWorkflow.paymentTimeout | quote }}
+  OrderWorkflow__KitchenAcceptanceTimeout: {{ .Values.orderWorkflow.kitchenAcceptanceTimeout | quote }}

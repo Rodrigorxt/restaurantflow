@@ -1,4 +1,6 @@
 using MassTransit;
+using AppAny.Quartz.EntityFrameworkCore.Migrations;
+using AppAny.Quartz.EntityFrameworkCore.Migrations.PostgreSQL;
 using Microsoft.EntityFrameworkCore;
 using RestaurantFlow.Orders.Api.Domain;
 using RestaurantFlow.Orders.Api.Workflow;
@@ -34,6 +36,7 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) :
         modelBuilder.AddInboxStateEntity();
         modelBuilder.AddOutboxMessageEntity();
         modelBuilder.AddOutboxStateEntity();
+        modelBuilder.AddQuartz(quartz => quartz.UsePostgreSql());
         modelBuilder.Entity<OrderWorkflowState>(entity =>
         {
             entity.ToTable("order_workflow_states");
