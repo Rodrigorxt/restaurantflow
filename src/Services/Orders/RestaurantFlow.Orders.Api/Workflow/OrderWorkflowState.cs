@@ -11,6 +11,7 @@ public sealed class OrderWorkflowState : SagaStateMachineInstance
     public Guid? PaymentId { get; set; }
     public Guid? KitchenTicketId { get; set; }
     public string? FailureReason { get; set; }
+    public Guid? WorkflowTimeoutTokenId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }

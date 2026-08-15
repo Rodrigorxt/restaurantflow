@@ -23,6 +23,12 @@ public sealed record CancelOrder(
     string Reason,
     DateTimeOffset OccurredAt);
 
+public sealed record OrderWorkflowTimedOut(
+    Guid EventId,
+    Guid OrderId,
+    string Stage,
+    DateTimeOffset OccurredAt);
+
 public sealed record OrderSubmitted(
     Guid EventId,
     Guid OrderId,

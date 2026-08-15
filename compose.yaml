@@ -68,6 +68,8 @@ services:
       Authentication__TokenEndpoint: http://keycloak:8080/realms/restaurantflow/protocol/openid-connect/token
       Authentication__ClientId: orders-service
       Authentication__ClientSecret: local-orders-secret
+      OrderWorkflow__PaymentTimeout: "00:00:15"
+      OrderWorkflow__KitchenAcceptanceTimeout: "00:00:15"
     depends_on:
       orders-db:
         condition: service_healthy

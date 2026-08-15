@@ -92,6 +92,7 @@ anonymous_status="$(curl --silent --output /dev/null --write-out '%{http_code}' 
 [[ "$anonymous_status" == "401" ]]
 
 recovered_id="not-run"
+timed_out_id="not-run"
 if [[ "${RUN_FAILURE_RECOVERY:-true}" == "true" ]]; then
   docker compose stop payments-api >/dev/null
   recovery_order="$(create_order "recovery-$suffix")"
@@ -101,6 +102,17 @@ if [[ "${RUN_FAILURE_RECOVERY:-true}" == "true" ]]; then
   [[ "$(jq --raw-output '.status' <<<"$pending_order")" == "pending-payment" ]]
   docker compose start payments-api >/dev/null
   wait_for_order_status "$recovered_id" 'accepted-by-kitchen' "$customer_token" >/dev/null
+
+  docker compose stop payments-api >/dev/null
+  timed_out_order="$(create_order "timeout-$suffix")"
+  timed_out_id="$(jq --raw-output '.id' <<<"$timed_out_order")"
+  wait_for_order_status "$timed_out_id" 'cancelled' "$customer_token" >/dev/null
+  timed_out_workflow="$(curl --silent --fail --header "Authorization: Bearer $customer_token" "$gateway_url/api/orders/$timed_out_id/workflow")"
+  [[ "$(jq --raw-output '.failureReason' <<<"$timed_out_workflow")" == "Payment authorization timed out." ]]
+  docker compose start payments-api >/dev/null
+  sleep 5
+  late_delivery_order="$(curl --silent --fail --header "Authorization: Bearer $customer_token" "$gateway_url/api/orders/$timed_out_id")"
+  [[ "$(jq --raw-output '.status' <<<"$late_delivery_order")" == "cancelled" ]]
 fi
 
-echo "End-to-end workflow passed: approved=$approved_id declined=$declined_id recovered=$recovered_id"
+echo "End-to-end workflow passed: approved=$approved_id declined=$declined_id recovered=$recovered_id timed-out=$timed_out_id"

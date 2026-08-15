@@ -21,7 +21,7 @@ public sealed class KitchenPreparationStartedConsumer(OrdersDbContext dbContext)
     public async Task Consume(ConsumeContext<KitchenPreparationStarted> context)
     {
         var order = await dbContext.Orders.SingleOrDefaultAsync(x => x.Id == context.Message.OrderId, context.CancellationToken);
-        if (order is null || order.Status == Domain.OrderStatus.Preparing) return;
+        if (order is null || order.Status != Domain.OrderStatus.AcceptedByKitchen) return;
         order.MarkAsPreparing();
         await dbContext.SaveChangesAsync(context.CancellationToken);
     }
@@ -32,9 +32,8 @@ public sealed class OrderReadyConsumer(OrdersDbContext dbContext) : IConsumer<Or
     public async Task Consume(ConsumeContext<OrderReady> context)
     {
         var order = await dbContext.Orders.SingleOrDefaultAsync(x => x.Id == context.Message.OrderId, context.CancellationToken);
-        if (order is null || order.Status == Domain.OrderStatus.Ready) return;
+        if (order is null || order.Status != Domain.OrderStatus.Preparing) return;
         order.MarkAsReady();
         await dbContext.SaveChangesAsync(context.CancellationToken);
     }
 }
-

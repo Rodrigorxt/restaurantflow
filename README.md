@@ -43,6 +43,7 @@ See [System architecture](docs/architecture.md) and the [architecture decision r
 - .NET 10, ASP.NET Core Minimal APIs, and Worker Services
 - Entity Framework Core and PostgreSQL
 - RabbitMQ and MassTransit
+- Quartz.NET with clustered PostgreSQL persistence for durable workflow deadlines
 - YARP API Gateway and Keycloak OIDC authentication
 - OpenTelemetry traces, metrics, and logs with OTLP export
 - Prometheus, Grafana, Tempo, and Loki
@@ -56,9 +57,9 @@ See [System architecture](docs/architecture.md) and the [architecture decision r
 1. The client submits menu item identifiers and quantities to the Orders API.
 2. Orders resolves the current name, price, and availability from the Menu API.
 3. Orders calculates the total, persists the aggregate, and publishes `OrderSubmitted` through its transactional outbox.
-4. A persisted Orders saga sends `AuthorizePayment` and records the workflow state.
+4. A persisted Orders saga sends `AuthorizePayment`, records the workflow state, and schedules a durable payment deadline.
 5. Payments authorizes or declines the transaction through its transactional Inbox/Outbox.
-6. An approved payment makes the saga send `CreateKitchenTicket`; a decline sends the compensating `CancelOrder` command.
+6. An approved payment replaces the payment deadline with a durable kitchen-acceptance deadline and sends `CreateKitchenTicket`; a decline or expired deadline sends the compensating `CancelOrder` command.
 7. Kitchen uses its transactional Inbox/Outbox and publishes preparation events.
 8. Notifications consumes customer-relevant events independently.
 
@@ -110,7 +111,7 @@ The GitHub Actions pipeline restores, builds, runs unit, architecture, and conta
 
 - Database-per-service ownership prevents cross-service persistence coupling.
 - Orders, Payments, and Kitchen use MassTransit Entity Framework transactional Inbox/Outbox persistence.
-- A PostgreSQL-backed MassTransit saga orchestrates payment, kitchen creation, and cancellation compensation.
+- A PostgreSQL-backed MassTransit saga orchestrates payment, kitchen creation, cancellation compensation, and durable Quartz.NET timeouts that survive process restarts.
 - Consumers use service-prefixed queues, retry policies, and idempotent business keys.
 - Server-authoritative menu resolution prevents client-side price manipulation.
 - Standard HTTP resilience policies protect synchronous service calls.
@@ -130,6 +131,7 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It provide
 | Server-authoritative pricing | Implemented |
 | Transactional Inbox/Outbox for Orders, Payments, and Kitchen | Implemented |
 | Persisted order workflow saga and decline compensation | Implemented |
+| Persisted payment and kitchen workflow deadlines | Implemented |
 | Retry and circuit breaker for Menu calls | Implemented |
 | Dedicated migration workloads | Implemented |
 | Docker Compose and Helm deployment | Implemented |
@@ -145,4 +147,4 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It provide
 
 ## Next milestones
 
-The core portfolio roadmap is complete. Future extensions can add real payment and notification providers, a customer-facing frontend, load-test baselines, and a cloud-specific Terraform deployment.
+The core backend portfolio roadmap is complete. Future extensions can add real payment and notification providers, a customer-facing frontend, load-test baselines, and a cloud-specific Terraform deployment.

@@ -1,6 +1,7 @@
 using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using RestaurantFlow.Contracts;
 using RestaurantFlow.Orders.Api.Workflow;
 
@@ -43,10 +44,61 @@ public sealed class OrderWorkflowStateMachineTests
             && message.Context.Message.Reason == "Card declined"));
     }
 
-    private static ServiceProvider CreateProvider() => new ServiceCollection()
-        .AddMassTransitTestHarness(configurator =>
-            configurator.AddSagaStateMachine<OrderWorkflowStateMachine, OrderWorkflowState>())
-        .BuildServiceProvider(true);
+    [Fact]
+    public async Task Payment_timeout_requests_order_compensation()
+    {
+        await using var provider = CreateProvider();
+        var harness = provider.GetRequiredService<ITestHarness>();
+        await harness.Start();
+        var orderId = Guid.NewGuid();
+
+        await harness.Bus.Publish(CreateOrderSubmitted(orderId));
+
+        Assert.True(await harness.Published.Any<CancelOrder>(message =>
+            message.Context.Message.OrderId == orderId
+            && message.Context.Message.Reason == "Payment authorization timed out."));
+    }
+
+    [Fact]
+    public async Task Late_timeout_after_kitchen_acceptance_is_ignored()
+    {
+        await using var provider = CreateProvider();
+        var harness = provider.GetRequiredService<ITestHarness>();
+        await harness.Start();
+        var orderId = Guid.NewGuid();
+
+        await harness.Bus.Publish(CreateOrderSubmitted(orderId));
+        await harness.Bus.Publish(new PaymentAuthorized(
+            Guid.NewGuid(), orderId, Guid.NewGuid(), 42m, DateTimeOffset.UtcNow));
+        await harness.Bus.Publish(new KitchenTicketCreated(
+            Guid.NewGuid(), orderId, Guid.NewGuid(), DateTimeOffset.UtcNow));
+        await harness.Bus.Publish(new OrderWorkflowTimedOut(
+            Guid.NewGuid(), orderId, "kitchen-acceptance", DateTimeOffset.UtcNow));
+
+        Assert.False(await harness.Published.Any<CancelOrder>(message =>
+            message.Context.Message.OrderId == orderId));
+    }
+
+    private static ServiceProvider CreateProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(Options.Create(new OrderWorkflowOptions
+        {
+            PaymentTimeout = TimeSpan.FromMilliseconds(250),
+            KitchenAcceptanceTimeout = TimeSpan.FromMilliseconds(250)
+        }));
+        services.AddMassTransitTestHarness(configurator =>
+        {
+            configurator.AddDelayedMessageScheduler();
+            configurator.AddSagaStateMachine<OrderWorkflowStateMachine, OrderWorkflowState>();
+            configurator.UsingInMemory((context, bus) =>
+            {
+                bus.UseDelayedMessageScheduler();
+                bus.ConfigureEndpoints(context);
+            });
+        });
+        return services.BuildServiceProvider(true);
+    }
 
     private static OrderSubmitted CreateOrderSubmitted(Guid orderId) => new(
         Guid.NewGuid(),
