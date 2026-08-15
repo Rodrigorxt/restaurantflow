@@ -1,0 +1,168 @@
+@page "/"
+@using System.Net.Http.Headers
+@using System.Net.Http.Json
+@using System.Text.Json.Serialization
+@inject HttpClient Http
+
+<PageTitle>Live service board · RestaurantFlow</PageTitle>
+
+<header class="masthead">
+    <a class="wordmark" href="/" aria-label="RestaurantFlow home"><span class="wordmark-box">RF</span><span>RestaurantFlow</span></a>
+    <div class="system-state"><span class="pulse"></span>Local platform</div>
+</header>
+
+<section class="hero">
+    <div><p class="eyebrow">Live distributed workflow</p><h1>From the dining room<br />to the pass.</h1></div>
+    <p class="hero-copy">Place a real order through the gateway, payment service, message broker, persisted saga, and kitchen. Watch every handoff arrive on the service rail.</p>
+</section>
+
+<section class="service-rail" aria-label="Order workflow stages">
+    @foreach (var stage in Stages)
+    {
+        <div class="rail-stop @StageClass(stage.Key)"><span class="rail-dot"></span><span class="rail-label">@stage.Label</span><span class="rail-detail">@stage.Detail</span></div>
+    }
+</section>
+
+@if (!string.IsNullOrWhiteSpace(message)) { <div class="notice @messageTone" role="status">@message</div> }
+
+<div class="board-grid">
+    <section class="menu-panel">
+        <div class="section-heading">
+            <div><p class="eyebrow">Tonight's board</p><h2>Choose the order</h2></div>
+            <button class="text-button" @onclick="LoadDemoAsync" disabled="@busy">@(menu.Count == 0 ? "Open demo service" : "Refresh menu")</button>
+        </div>
+        @if (menu.Count == 0)
+        {
+            <div class="empty-state"><span class="empty-ticket">SERVICE<br />READY</span><p>Start the local demo to authenticate with Keycloak and prepare a small menu.</p><button class="primary-button" @onclick="LoadDemoAsync" disabled="@busy">@(busy ? "Opening…" : "Open demo service")</button></div>
+        }
+        else
+        {
+            <div class="menu-list">
+                @foreach (var item in menu)
+                {
+                    <article class="menu-item @(Quantities[item.Id] > 0 ? "selected" : "")">
+                        <div><span class="category">@item.Category</span><h3>@item.Name</h3><p>@item.Description</p></div>
+                        <div class="menu-action"><strong>@item.Price.ToString("C", Currency)</strong><div class="stepper" aria-label="Quantity for @item.Name"><button @onclick="() => ChangeQuantity(item.Id, -1)" aria-label="Remove one">−</button><span>@Quantities[item.Id]</span><button @onclick="() => ChangeQuantity(item.Id, 1)" aria-label="Add one">+</button></div></div>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+
+    <aside class="ticket-panel">
+        <div class="ticket-top"><span>ORDER / DEMO</span><span>@DateTime.Now.ToString("HH:mm")</span></div>
+        <h2>Service ticket</h2>
+        <div class="ticket-lines">
+            @foreach (var item in SelectedItems) { <div><span>@Quantities[item.Id] × @item.Name</span><span>@((item.Price * Quantities[item.Id]).ToString("C", Currency))</span></div> }
+            @if (!SelectedItems.Any()) { <p class="muted">Add something from tonight's board.</p> }
+        </div>
+        <div class="ticket-total"><span>Total</span><strong>@Total.ToString("C", Currency)</strong></div>
+        <fieldset class="outcome-choice"><legend>Payment simulation</legend><label><input type="radio" name="outcome" checked="@(!declinePayment)" @onchange="() => declinePayment = false" /> Approve</label><label><input type="radio" name="outcome" checked="@declinePayment" @onchange="() => declinePayment = true" /> Decline</label></fieldset>
+        <button class="primary-button full" @onclick="PlaceOrderAsync" disabled="@(busy || !SelectedItems.Any())">@(busy ? "Working the ticket…" : "Send to the kitchen")</button>
+        @if (currentOrder is not null)
+        {
+            <div class="order-result"><div><span>Order</span><code>@currentOrder.Id.ToString()[..8]</code></div><div><span>State</span><strong>@Humanize(currentOrder.Status)</strong></div>@if (!string.IsNullOrWhiteSpace(currentOrder.CancellationReason)) { <p>@currentOrder.CancellationReason</p> }</div>
+        }
+    </aside>
+</div>
+
+<footer><span>Blazor WebAssembly · .NET 10</span><span>Keycloak → YARP → PostgreSQL → RabbitMQ → Quartz</span></footer>
+
+@code {
+    private static readonly System.Globalization.CultureInfo Currency = new("en-US");
+    private readonly List<MenuItem> menu = [];
+    private readonly Dictionary<Guid, int> Quantities = [];
+    private string? customerToken;
+    private string? message;
+    private string messageTone = "info";
+    private bool busy;
+    private bool declinePayment;
+    private OrderView? currentOrder;
+    private static readonly Stage[] Stages = [new("submitted", "Submitted", "Orders"), new("payment", "Payment", "Payments"), new("accepted", "Accepted", "Kitchen"), new("preparing", "Preparing", "Kitchen"), new("ready", "Ready", "Pickup")];
+    private IEnumerable<MenuItem> SelectedItems => menu.Where(item => Quantities.GetValueOrDefault(item.Id) > 0);
+    private decimal Total => SelectedItems.Sum(item => item.Price * Quantities[item.Id]);
+
+    private async Task LoadDemoAsync()
+    {
+        busy = true; message = "Connecting to the local identity and menu services…"; messageTone = "info";
+        try
+        {
+            customerToken = await TokenForAsync("customer", "customer");
+            var adminToken = await TokenForAsync("restaurant-admin", "admin");
+            await LoadMenuAsync();
+            if (menu.Count == 0)
+            {
+                foreach (var item in DemoMenu)
+                {
+                    using var request = Authorized(HttpMethod.Post, "/api/menu/items", adminToken); request.Content = JsonContent.Create(item);
+                    using var response = await Http.SendAsync(request); response.EnsureSuccessStatusCode();
+                }
+                await LoadMenuAsync();
+            }
+            message = "Demo service is open. Build a ticket and send it through the platform."; messageTone = "success";
+        }
+        catch (Exception exception) { message = $"The local platform is unavailable. Start Docker Compose and try again. {exception.Message}"; messageTone = "error"; }
+        finally { busy = false; }
+    }
+
+    private async Task<string> TokenForAsync(string username, string password)
+    {
+        using var content = new FormUrlEncodedContent(new Dictionary<string, string> { ["grant_type"] = "password", ["client_id"] = "restaurantflow-cli", ["username"] = username, ["password"] = password });
+        using var response = await Http.PostAsync("/identity/realms/restaurantflow/protocol/openid-connect/token", content); response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<TokenResponse>())!.AccessToken;
+    }
+
+    private async Task LoadMenuAsync()
+    {
+        var items = await Http.GetFromJsonAsync<List<MenuItem>>("/api/menu/items") ?? [];
+        menu.Clear();
+        menu.AddRange(items
+            .Where(item => !FixturePrefixes.Any(prefix => item.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+            .Take(8));
+        foreach (var item in menu) Quantities.TryAdd(item.Id, 0);
+    }
+
+    private async Task PlaceOrderAsync()
+    {
+        if (customerToken is null) await LoadDemoAsync();
+        if (customerToken is null) return;
+        busy = true; currentOrder = null; message = "Ticket accepted. Watching the distributed handoffs…"; messageTone = "info";
+        try
+        {
+            var body = new PlaceOrder(Guid.Empty, "ignored@example.com", $"{(declinePayment ? "decline" : "approved")}-ui-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}", SelectedItems.Select(item => new PlaceOrderItem(item.Id, Quantities[item.Id])).ToArray());
+            using var request = Authorized(HttpMethod.Post, "/api/orders", customerToken); request.Content = JsonContent.Create(body);
+            using var response = await Http.SendAsync(request); response.EnsureSuccessStatusCode();
+            var accepted = (await response.Content.ReadFromJsonAsync<AcceptedOrder>())!;
+            currentOrder = new(accepted.Id, accepted.Status, accepted.Total, null); StateHasChanged();
+            for (var attempt = 0; attempt < 15; attempt++)
+            {
+                await Task.Delay(1000); currentOrder = await GetAuthorizedAsync<OrderView>($"/api/orders/{accepted.Id}", customerToken); StateHasChanged();
+                if (currentOrder?.Status is "accepted-by-kitchen" or "preparing" or "ready" or "cancelled") break;
+            }
+            message = currentOrder?.Status == "cancelled" ? "Payment was declined. The saga compensated the order and closed the ticket." : "The kitchen accepted the ticket. Every asynchronous handoff completed.";
+            messageTone = currentOrder?.Status == "cancelled" ? "error" : "success";
+        }
+        catch (Exception exception) { message = $"The ticket could not complete. {exception.Message}"; messageTone = "error"; }
+        finally { busy = false; }
+    }
+
+    private async Task<T?> GetAuthorizedAsync<T>(string uri, string token)
+    {
+        using var request = Authorized(HttpMethod.Get, uri, token); using var response = await Http.SendAsync(request); response.EnsureSuccessStatusCode(); return await response.Content.ReadFromJsonAsync<T>();
+    }
+
+    private static HttpRequestMessage Authorized(HttpMethod method, string uri, string token) { var request = new HttpRequestMessage(method, uri); request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token); return request; }
+    private void ChangeQuantity(Guid id, int delta) => Quantities[id] = Math.Clamp(Quantities.GetValueOrDefault(id) + delta, 0, 9);
+    private string StageClass(string stage) => stage switch { "submitted" when currentOrder is not null => "complete", "payment" when currentOrder?.Status is not null and not "pending-payment" => "complete", "accepted" when currentOrder?.Status is "accepted-by-kitchen" or "preparing" or "ready" => "complete", "preparing" when currentOrder?.Status is "preparing" or "ready" => "complete", "ready" when currentOrder?.Status is "ready" => "complete", _ when currentOrder?.Status == "cancelled" => "cancelled", _ => "" };
+    private static string Humanize(string value) => string.Join(' ', value.Split('-').Select(word => char.ToUpperInvariant(word[0]) + word[1..]));
+    private static readonly CreateMenuItem[] DemoMenu = [new("Charred onion burger", "Aged cheddar, pickled shallot, house sauce", "From the grill", 18.50m), new("Garden ember bowl", "Farro, smoked squash, herbs, lemon tahini", "From the garden", 15.00m), new("Salted cocoa tart", "Dark cocoa, crème fraîche, sea salt", "Last course", 9.50m)];
+    private static readonly string[] FixturePrefixes = ["E2E ", "Performance ", "Telemetry ", "Saga ", "OIDC "];
+    private sealed record TokenResponse([property: JsonPropertyName("access_token")] string AccessToken);
+    private sealed record MenuItem(Guid Id, string Name, string Description, string Category, decimal Price, bool IsAvailable);
+    private sealed record CreateMenuItem(string Name, string Description, string Category, decimal Price);
+    private sealed record PlaceOrder(Guid CustomerId, string CustomerEmail, string PaymentReference, IReadOnlyCollection<PlaceOrderItem> Items);
+    private sealed record PlaceOrderItem(Guid MenuItemId, int Quantity);
+    private sealed record AcceptedOrder(Guid Id, string Status, decimal Total);
+    private sealed record OrderView(Guid Id, string Status, decimal Total, string? CancellationReason);
+    private sealed record Stage(string Key, string Label, string Detail);
+}

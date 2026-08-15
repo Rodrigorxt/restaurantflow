@@ -10,4 +10,6 @@
 coverage/
 TestResults/
 artifacts/
-
+src/Web/RestaurantFlow.Web/wwwroot/lib/
+src/Web/RestaurantFlow.Web/wwwroot/sample-data/
+src/Web/RestaurantFlow.Web/wwwroot/*.png

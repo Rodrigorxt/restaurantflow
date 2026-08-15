@@ -24,6 +24,9 @@
   <Folder Name="/src/Services/Payments/">
     <Project Path="src/Services/Payments/RestaurantFlow.Payments.Api/RestaurantFlow.Payments.Api.csproj" />
   </Folder>
+  <Folder Name="/src/Web/">
+    <Project Path="src/Web/RestaurantFlow.Web/RestaurantFlow.Web.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/RestaurantFlow.ArchitectureTests/RestaurantFlow.ArchitectureTests.csproj" />
     <Project Path="tests/RestaurantFlow.Menu.IntegrationTests/RestaurantFlow.Menu.IntegrationTests.csproj" />

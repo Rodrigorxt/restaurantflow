@@ -9,6 +9,7 @@ The system models an order from menu selection through payment authorization, ki
 ```mermaid
 flowchart LR
     Client --> Gateway[API Gateway]
+    Demo[Blazor Demo] --> Gateway
     Gateway --> Menu[Menu API]
     Gateway --> Orders[Orders API]
     Gateway --> Kitchen[Kitchen API]
@@ -37,10 +38,12 @@ See [System architecture](docs/architecture.md) and the [architecture decision r
 | Payments API | Idempotent payment authorization simulation | PostgreSQL |
 | Kitchen API | Preparation tickets and kitchen status | PostgreSQL |
 | Notifications Worker | Independent customer-event processing | None |
+| Blazor Demo | Recruiter-friendly executable order and workflow experience | Browser |
 
 ## Technology
 
 - .NET 10, ASP.NET Core Minimal APIs, and Worker Services
+- Blazor WebAssembly recruiter demo served through Nginx
 - Entity Framework Core and PostgreSQL
 - RabbitMQ and MassTransit
 - Quartz.NET with clustered PostgreSQL persistence for durable workflow deadlines
@@ -81,6 +84,7 @@ Available endpoints:
 | Resource | Address |
 | --- | --- |
 | API Gateway | `http://localhost:8080` |
+| Live service board | `http://localhost:8082` |
 | RabbitMQ Management | `http://localhost:15672` |
 | RabbitMQ local credentials | `restaurantflow` / `restaurantflow` |
 | Local OIDC token endpoint | `http://localhost:8081/realms/restaurantflow/protocol/openid-connect/token` |
@@ -90,6 +94,8 @@ Available endpoints:
 | Loki | `http://localhost:3100` |
 
 Run the requests in [docs/demo.http](docs/demo.http) in order to obtain role-specific tokens, create a menu item, submit approved and declined orders, inspect order state, and list kitchen tickets. See [Security model](docs/security.md) and [Observability](docs/observability.md).
+
+For a visual walkthrough, open the live service board at `http://localhost:8082`, choose **Open demo service**, add menu items to the ticket, and send approved or declined orders through the real distributed workflow. The demo credentials and automatic sample menu are intentionally restricted to the local Compose environment.
 
 Stop the environment without deleting database volumes:
 
@@ -154,6 +160,7 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It provide
 | RabbitMQ and full workflow integration tests | Implemented in Docker Compose CI |
 | Production secret provider and managed cloud services profile | Implemented |
 | Reproducible API performance baseline | Implemented |
+| Interactive Blazor workflow demonstration | Implemented |
 
 ## Next milestones
 
