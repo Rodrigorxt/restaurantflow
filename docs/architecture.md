@@ -100,6 +100,8 @@ Docker Compose provides a reproducible local environment. The Helm chart provide
 
 The default in-cluster PostgreSQL and RabbitMQ resources are demonstration infrastructure. The production Helm profile disables them, consumes managed-service connections from External Secrets, enables TLS Ingress, requires immutable image references, removes automatic workload API tokens, spreads replicas across failure domains, and protects replicas with disruption budgets. Backup policies and tested disaster recovery remain environment responsibilities.
 
+The AWS Terraform reference realizes this profile with private EKS nodes, one isolated RDS database per stateful service, clustered Amazon MQ for RabbitMQ, immutable ECR repositories, KMS encryption, and Secrets Manager. It spans three Availability Zones and keeps shared platform controllers outside the application lifecycle. See [ADR 0010](decisions/0010-aws-managed-infrastructure.md).
+
 ## Observability
 
 The shared observability building block instruments ASP.NET Core, outbound HTTP, runtime metrics, MassTransit operations, and structured logs with OpenTelemetry. Services export OTLP to a central Collector, which routes metrics to Prometheus, traces to Tempo, and logs to Loki. Grafana provisions all three data sources and a service dashboard with trace-to-log correlation. See [Observability](observability.md).
