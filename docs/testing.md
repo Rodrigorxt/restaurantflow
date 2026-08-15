@@ -65,3 +65,7 @@ GitHub Actions starts the complete Docker Compose platform, runs this test, capt
 ```bash
 ./scripts/run-e2e.sh
 ```
+
+## Performance baseline
+
+The k6 order-submission scenario drives a fixed arrival rate through the public Gateway and includes pass/fail thresholds for response latency, request failures, dropped iterations, and business checks. Setup uses real Keycloak tokens and creates server-owned Menu data, so the measured path includes authentication, Gateway routing, Orders-to-Menu HTTP resilience, and PostgreSQL persistence. See [Performance testing](performance.md).

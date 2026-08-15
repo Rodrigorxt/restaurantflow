@@ -169,6 +169,18 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  k6:
+    image: grafana/k6:2.1.0
+    profiles: ["performance"]
+    environment:
+      BASE_URL: http://gateway:8080
+      IDENTITY_URL: http://keycloak:8080
+    volumes:
+      - ./tests/performance:/scripts:ro
+    depends_on:
+      - gateway
+      - keycloak
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.0
     command: start-dev --import-realm
