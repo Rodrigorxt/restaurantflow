@@ -50,6 +50,7 @@ See [System architecture](docs/architecture.md) and the [architecture decision r
 - Docker Compose
 - Kubernetes and Helm
 - xUnit unit, architecture, and Testcontainers integration tests
+- k6 workload scenarios with executable latency and error-rate thresholds
 - GitHub Actions continuous integration
 
 ## Order workflow
@@ -107,6 +108,14 @@ helm template restaurantflow deploy/helm/restaurantflow --namespace restaurantfl
 
 The GitHub Actions pipeline restores, builds, runs unit, architecture, and container-backed integration tests, validates Docker Compose, lints the Helm chart, and renders the Kubernetes manifests for every pull request. See [Testing strategy](docs/testing.md).
 
+Run the repeatable order-submission performance baseline against the local platform with:
+
+```bash
+docker compose --profile performance run --rm k6 run /scripts/order-submission.js
+```
+
+The baseline uses a constant arrival rate, exercises real OIDC authentication and server-authoritative Menu resolution, and fails when its latency, availability, or functional thresholds are exceeded. See [Performance testing](docs/performance.md).
+
 ## Reliability and scalability
 
 - Database-per-service ownership prevents cross-service persistence coupling.
@@ -144,6 +153,7 @@ The Helm chart is documented in [deploy/README.md](deploy/README.md). It provide
 | Local observability dashboard stack | Implemented |
 | RabbitMQ and full workflow integration tests | Implemented in Docker Compose CI |
 | Production secret provider and managed cloud services profile | Implemented |
+| Reproducible API performance baseline | Implemented |
 
 ## Next milestones
 
