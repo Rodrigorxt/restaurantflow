@@ -5,6 +5,7 @@ RestaurantFlow uses independently deployable services aligned with restaurant bu
 ```mermaid
 flowchart LR
     Client --> Gateway[API Gateway]
+    Demo[Blazor Service Board] --> Gateway
     Identity[OIDC Provider] --> Gateway
     Identity --> Orders
     Identity --> Menu
@@ -37,6 +38,8 @@ flowchart LR
 - **Gateway** exposes public routes. Internal Menu resolution is not routed publicly.
 
 No service reads another service's database.
+
+The local Compose profile includes a Blazor WebAssembly service board for portfolio demonstrations. Nginx serves the static client and provides same-origin reverse proxies to the Gateway and local Keycloak instance. The board uses only public HTTP contracts; it does not bypass service boundaries or access databases directly. Its password-grant demo accounts and automatic sample menu are local-development conveniences, not part of the production identity model.
 
 ## Identity and access
 

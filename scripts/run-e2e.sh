@@ -3,6 +3,7 @@ set -euo pipefail
 
 gateway_url="${GATEWAY_URL:-http://localhost:8080}"
 identity_url="${IDENTITY_URL:-http://localhost:8081}"
+web_url="${WEB_URL:-http://localhost:8082}"
 timeout_seconds="${E2E_TIMEOUT_SECONDS:-120}"
 
 wait_for_http() {
@@ -50,6 +51,8 @@ wait_for_order_status() {
 
 wait_for_http "$gateway_url/health"
 wait_for_http "$identity_url/realms/restaurantflow/.well-known/openid-configuration"
+wait_for_http "$web_url"
+curl --silent --fail "$web_url" | grep --quiet 'RestaurantFlow — Live service board'
 
 admin_token="$(token_for restaurant-admin admin)"
 customer_token="$(token_for customer customer)"
